@@ -12,7 +12,7 @@ DATABASE_URL = settings.DATABASE_URL.replace(
 
 engine = create_engine(
     DATABASE_URL,
-    echo=True,
+    echo=False,
     pool_pre_ping=True,
     pool_recycle=300,
 )
