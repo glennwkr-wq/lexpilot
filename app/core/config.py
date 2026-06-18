@@ -14,6 +14,7 @@ class Settings:
 
     ADMIN_EMAIL: str = os.getenv("ADMIN_EMAIL", "admin@example.com")
     ADMIN_PASSWORD: str = os.getenv("ADMIN_PASSWORD", "admin123")
+    INIT_DB_TOKEN: str = os.getenv("INIT_DB_TOKEN", "lexpilot_init_2026")
 
 
 settings = Settings()
