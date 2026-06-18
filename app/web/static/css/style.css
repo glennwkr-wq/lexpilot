@@ -1,0 +1,166 @@
+:root {
+  --bg: #f5f6f8;
+  --panel: #ffffff;
+  --navy: #111827;
+  --navy-light: #1f2937;
+  --text: #111827;
+  --muted: #6b7280;
+  --border: #e5e7eb;
+  --accent: #8b1e3f;
+  --accent-dark: #6f1732;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.sidebar {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 260px;
+  height: 100vh;
+  background: var(--navy);
+  color: white;
+  padding: 28px 22px;
+}
+
+.logo {
+  font-size: 24px;
+  font-weight: 700;
+  margin-bottom: 40px;
+}
+
+.sidebar nav {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sidebar a {
+  color: #d1d5db;
+  text-decoration: none;
+  padding: 12px 14px;
+  border-radius: 10px;
+}
+
+.sidebar a:hover {
+  background: var(--navy-light);
+  color: white;
+}
+
+.main {
+  margin-left: 260px;
+  padding: 40px;
+}
+
+.hero {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  padding: 42px;
+  max-width: 980px;
+}
+
+.eyebrow {
+  color: var(--accent);
+  text-transform: uppercase;
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+}
+
+h1 {
+  font-size: 44px;
+  margin: 10px 0 16px;
+}
+
+.hero p {
+  max-width: 720px;
+  line-height: 1.6;
+  color: var(--muted);
+  font-size: 18px;
+}
+
+.actions {
+  margin-top: 28px;
+  display: flex;
+  gap: 14px;
+}
+
+button {
+  border: none;
+  background: var(--accent);
+  color: white;
+  padding: 14px 20px;
+  border-radius: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+button:hover {
+  background: var(--accent-dark);
+}
+
+button.secondary {
+  background: #e5e7eb;
+  color: var(--text);
+}
+
+.cards {
+  margin-top: 28px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+  max-width: 980px;
+}
+
+.card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 24px;
+}
+
+.card span {
+  color: var(--muted);
+}
+
+.card strong {
+  display: block;
+  font-size: 36px;
+  margin: 12px 0;
+}
+
+.card p {
+  color: var(--muted);
+  margin: 0;
+}
+
+@media (max-width: 800px) {
+  .sidebar {
+    position: static;
+    width: 100%;
+    height: auto;
+  }
+
+  .main {
+    margin-left: 0;
+    padding: 20px;
+  }
+
+  .cards {
+    grid-template-columns: 1fr;
+  }
+
+  h1 {
+    font-size: 34px;
+  }
+}

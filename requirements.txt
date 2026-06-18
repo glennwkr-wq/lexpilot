@@ -1,0 +1,14 @@
+flask
+python-dotenv
+sqlalchemy
+asyncpg
+openai
+python-docx
+pypdf
+docx2txt
+bcrypt
+PyJWT
+psycopg2-binary
+pg8000
+gunicorn
+psycopg[binary]

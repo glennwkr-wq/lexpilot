@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="hero">
+  <p class="eyebrow">Юридический AI-сервис</p>
+  <h1>Рабочий кабинет адвоката</h1>
+  <p>
+    LexPilot помогает анализировать документы, готовить черновики процессуальных документов,
+    вести дела и собирать хронологию.
+  </p>
+
+  <div class="actions">
+    <button>Создать дело</button>
+    <button class="secondary">Сгенерировать документ</button>
+  </div>
+</section>
+
+<section class="cards">
+  <div class="card">
+    <span>Дела</span>
+    <strong>0</strong>
+    <p>Пока нет созданных дел</p>
+  </div>
+
+  <div class="card">
+    <span>Документы</span>
+    <strong>0</strong>
+    <p>Загруженные документы появятся здесь</p>
+  </div>
+
+  <div class="card">
+    <span>AI-запросы</span>
+    <strong>0</strong>
+    <p>История запросов будет добавлена позже</p>
+  </div>
+</section>
+{% endblock %}
