@@ -4,6 +4,7 @@ from app.core.config import settings
 from app.services.knowledge.ingest import ingest_knowledge_base
 from app.services.knowledge.search import search_knowledge, build_knowledge_context
 from app.providers.llm.openai import generate_legal_answer
+from app.services.documents.builder import build_document_from_request
 
 def create_app() -> Flask:
     app = Flask(__name__)
@@ -16,6 +17,10 @@ def create_app() -> Flask:
     @app.get("/ask")
     def ask_page():
         return render_template("ask.html", app_name=settings.APP_NAME)
+
+    @app.get("/document-builder")
+    def document_builder_page():
+        return render_template("document_builder.html", app_name=settings.APP_NAME)
 
     @app.get("/admin/ingest-knowledge")
     def admin_ingest_knowledge():
@@ -59,5 +64,19 @@ def create_app() -> Flask:
                 for item in knowledge_results
             ],
         })
+
+    @app.post("/api/document-builder")
+    def api_document_builder():
+        data = request.get_json(silent=True) or {}
+        user_request = (data.get("request") or "").strip()
+
+        if not user_request:
+            return jsonify({
+                "status": "error",
+                "message": "Request is required",
+            }), 400
+
+        result = build_document_from_request(user_request)
+        return jsonify(result)
 
     return app

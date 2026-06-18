@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="page-header">
+  <p class="eyebrow">LexPilot Drafting</p>
+  <h1>Генератор документов</h1>
+  <p>
+    Опишите задачу свободным текстом. LexPilot определит тип документа,
+    проверит базу знаний и подготовит рабочий черновик для юриста.
+  </p>
+</section>
+
+<section class="ask-layout">
+  <div class="ask-panel">
+    <label for="documentRequest">Исходные данные</label>
+    <textarea
+      id="documentRequest"
+      placeholder="Например: подготовь претензию о взыскании задолженности по договору поставки. Поставщик ООО Ромашка, покупатель ООО Вектор, долг 450 000 руб., товар передан по УПД..."
+    ></textarea>
+
+    <button id="generateDocumentButton" type="button">Сформировать документ</button>
+
+    <p class="hint">
+      LexPilot готовит черновик. Финальная проверка и правки остаются за юристом.
+    </p>
+  </div>
+
+  <div class="answer-panel">
+    <div class="answer-header">
+      <h2>Черновик документа</h2>
+      <span id="documentStatusBadge">Ожидает данные</span>
+    </div>
+
+    <div id="documentDraftBox" class="answer-box">
+      Здесь появится черновик документа.
+    </div>
+
+    <div class="sources-block">
+      <h3>Использованные материалы</h3>
+      <div id="documentSourcesBox" class="sources-box">
+        Источники появятся после генерации.
+      </div>
+    </div>
+  </div>
+</section>
+
+<script src="{{ url_for('static', filename='js/document_builder.js') }}"></script>
+{% endblock %}
