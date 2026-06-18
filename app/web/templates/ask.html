@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="page-header">
+  <p class="eyebrow">LexPilot AI</p>
+  <h1>AI-консультация по базе знаний</h1>
+  <p>
+    Задайте юридический вопрос. LexPilot сначала ищет релевантные материалы в базе знаний,
+    а затем формирует структурированный ответ для юриста.
+  </p>
+</section>
+
+<section class="ask-layout">
+  <div class="ask-panel">
+    <label for="question">Вопрос юриста</label>
+    <textarea
+      id="question"
+      placeholder="Например: какие документы проверить перед подготовкой претензии о взыскании задолженности?"
+    ></textarea>
+
+    <button id="askButton" type="button">Получить ответ</button>
+
+    <p class="hint">
+      Ответ является рабочим черновиком и требует проверки юристом.
+    </p>
+  </div>
+
+  <div class="answer-panel">
+    <div class="answer-header">
+      <h2>Ответ LexPilot</h2>
+      <span id="statusBadge">Ожидает вопрос</span>
+    </div>
+
+    <div id="answerBox" class="answer-box">
+      Здесь появится ответ AI.
+    </div>
+
+    <div class="sources-block">
+      <h3>Найденные источники</h3>
+      <div id="sourcesBox" class="sources-box">
+        Источники появятся после запроса.
+      </div>
+    </div>
+  </div>
+</section>
+
+<script src="{{ url_for('static', filename='js/ask.js') }}"></script>
+{% endblock %}

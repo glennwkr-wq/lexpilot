@@ -13,6 +13,10 @@ def create_app() -> Flask:
     def dashboard():
         return render_template("dashboard.html", app_name=settings.APP_NAME)
 
+    @app.get("/ask")
+    def ask_page():
+        return render_template("ask.html", app_name=settings.APP_NAME)
+
     @app.get("/admin/ingest-knowledge")
     def admin_ingest_knowledge():
         token = request.args.get("token")
