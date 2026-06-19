@@ -9,6 +9,57 @@ def search_knowledge(query: str, limit: int = 5) -> list[dict]:
     if not query:
         return []
 
+    words = [word.strip() for word in query.split() if len(word.strip()) >= 3]
+    words = words[:8]
+
+    if not words:
+        words = [query]
+
+    conditions = []
+    params = {"limit": limit}
+
+    for index, word in enumerate(words):
+        key = f"q{index}"
+        conditions.append(
+            f"""
+            kc.content ILIKE :{key}
+            OR ld.title ILIKE :{key}
+            OR ld.document_type ILIKE :{key}
+            OR ld.source_url ILIKE :{key}
+            """
+        )
+        params[key] = f"%{word}%"
+
+    where_sql = " OR ".join(f"({condition})" for condition in conditions)
+
+    with SessionLocal() as session:
+        rows = session.execute(
+            text(f"""
+                SELECT
+                    kc.id,
+                    kc.content,
+                    ld.title,
+                    ld.document_type,
+                    ld.source,
+                    ld.source_url
+                FROM knowledge_chunks kc
+                JOIN legal_documents ld ON ld.id = kc.document_id
+                WHERE {where_sql}
+                ORDER BY kc.id DESC
+                LIMIT :limit
+            """),
+            params,
+        ).fetchall()
+
+    return _rows_to_dicts(rows)
+
+
+def search_knowledge_by_phrase(phrase: str, limit: int = 5) -> list[dict]:
+    phrase = phrase.strip()
+
+    if not phrase:
+        return []
+
     with SessionLocal() as session:
         rows = session.execute(
             text("""
@@ -22,18 +73,23 @@ def search_knowledge(query: str, limit: int = 5) -> list[dict]:
                 FROM knowledge_chunks kc
                 JOIN legal_documents ld ON ld.id = kc.document_id
                 WHERE
-                    kc.content ILIKE :query
-                    OR ld.title ILIKE :query
-                    OR ld.document_type ILIKE :query
+                    kc.content ILIKE :phrase
+                    OR ld.title ILIKE :phrase
+                    OR ld.document_type ILIKE :phrase
+                    OR ld.source_url ILIKE :phrase
                 ORDER BY kc.id DESC
                 LIMIT :limit
             """),
             {
-                "query": f"%{query}%",
+                "phrase": f"%{phrase}%",
                 "limit": limit,
             },
         ).fetchall()
 
+    return _rows_to_dicts(rows)
+
+
+def _rows_to_dicts(rows) -> list[dict]:
     return [
         {
             "chunk_id": row.id,
