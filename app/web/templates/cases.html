@@ -5,8 +5,8 @@
   <p class="eyebrow">Управление делами</p>
   <h1>Дела</h1>
   <p>
-    Рабочий раздел для ведения юридических дел: стороны, стадия, описание,
-    ближайшее действие, задачи и сроки. Данные сохраняются в Neon PostgreSQL.
+    Рабочий раздел для ведения юридических дел: стороны, стадия, задачи и сроки.
+    Данные сохраняются в Neon PostgreSQL.
   </p>
 </section>
 
@@ -36,7 +36,7 @@
 <section class="cases-toolbar">
   <div>
     <h2>История дел</h2>
-    <p>Создавайте, редактируйте и закрывайте дела. На дашборде будут показаны последние активные дела.</p>
+    <p>Компактный список дел. Подробности раскрываются внутри карточки.</p>
   </div>
 
   <button id="newCaseButton" type="button">Создать дело</button>
@@ -100,11 +100,11 @@
   </form>
 </section>
 
-<section class="cases-grid" id="casesList">
+<section class="compact-list" id="casesList">
   {% if cases %}
     {% for case in cases %}
       <article
-        class="case-card compact-record"
+        class="compact-row compact-record case-card"
         data-record-type="case"
         data-case-id="{{ case.id }}"
         data-title="{{ case.title }}"
@@ -116,55 +116,55 @@
         data-next-action="{{ case.next_action or '' }}"
         data-deadline="{{ case.deadline or '' }}"
       >
-        <div class="case-card-header">
+        <div class="compact-main">
           <div>
-            <span class="entity-type-pill">Дело</span>
-            <span class="case-label">{{ case.category or "Без категории" }}</span>
+            <div class="compact-kicker">
+              <span class="entity-type-pill">Дело</span>
+              <span>{{ case.category or "Без категории" }}</span>
+            </div>
             <h3>{{ case.title }}</h3>
+            <p>
+              {{ case.client_name or "Клиент не указан" }}
+              {% if case.opponent_name %}
+                против {{ case.opponent_name }}
+              {% endif %}
+            </p>
           </div>
 
-          <span class="status-pill">
-            {% if case.status == "new" %}Новое
-            {% elif case.status == "pretrial" %}Досудебный порядок
-            {% elif case.status == "court" %}Суд
-            {% elif case.status == "appeal" %}Апелляция
-            {% elif case.status == "enforcement" %}Исполнение
-            {% elif case.status == "closed" %}Закрыто
-            {% else %}{{ case.status }}
-            {% endif %}
-          </span>
-        </div>
-
-        <p>{{ case.description or "Описание дела пока не заполнено." }}</p>
-
-        <div class="case-meta">
-          <div>
-            <span>Клиент</span>
-            <strong>{{ case.client_name or "Не указан" }}</strong>
-          </div>
-          <div>
-            <span>Оппонент</span>
-            <strong>{{ case.opponent_name or "Не указан" }}</strong>
-          </div>
-          <div>
-            <span>Срок</span>
-            <strong>{{ case.deadline or "Не указан" }}</strong>
+          <div class="compact-side">
+            <span class="status-pill">
+              {% if case.status == "new" %}Новое
+              {% elif case.status == "pretrial" %}Досудебный порядок
+              {% elif case.status == "court" %}Суд
+              {% elif case.status == "appeal" %}Апелляция
+              {% elif case.status == "enforcement" %}Исполнение
+              {% elif case.status == "closed" %}Закрыто
+              {% else %}{{ case.status }}
+              {% endif %}
+            </span>
+            <small>{{ case.deadline or "Срок не указан" }}</small>
           </div>
         </div>
 
-        {% if case.next_action %}
-          <div class="case-next-action">
-            <span>Ближайшее действие</span>
-            <strong>{{ case.next_action }}</strong>
-          </div>
-        {% endif %}
+        <details class="compact-details">
+          <summary>Подробности</summary>
 
-        <div class="case-actions">
-          <a href="/document-builder">Подготовить документ</a>
-          <a href="/ask">Задать вопрос</a>
-          <button class="edit-case-button" type="button">Редактировать</button>
-          <button class="delete-case-button secondary" type="button">Удалить</button>
-        </div>
+          <p>{{ case.description or "Описание дела пока не заполнено." }}</p>
+
+          {% if case.next_action %}
+            <div class="case-next-action">
+              <span>Ближайшее действие</span>
+              <strong>{{ case.next_action }}</strong>
+            </div>
+          {% endif %}
+
+          <div class="case-actions">
+            <a href="/document-builder">Подготовить документ</a>
+            <a href="/ask">Задать вопрос</a>
+            <button class="edit-case-button" type="button">Редактировать</button>
+            <button class="delete-case-button secondary" type="button">Удалить</button>
+          </div>
+        </details>
       </article>
     {% endfor %}
   {% else %}
@@ -178,7 +178,7 @@
 <section class="cases-toolbar secondary-toolbar">
   <div>
     <h2>Задачи</h2>
-    <p>Создавайте задачи, привязывайте их к делам, назначайте сроки и отмечайте выполнение.</p>
+    <p>Компактный список задач с фильтрами, сроками и привязкой к делу.</p>
   </div>
 
   <button id="newTaskButton" type="button">Создать задачу</button>
@@ -240,11 +240,11 @@
   </form>
 </section>
 
-<section class="tasks-grid" id="tasksList">
+<section class="compact-list" id="tasksList">
   {% if tasks %}
     {% for task in tasks %}
       <article
-        class="task-card compact-record"
+        class="compact-row compact-record task-card"
         data-record-type="task"
         data-task-id="{{ task.id }}"
         data-case-id="{{ task.case_id or '' }}"
@@ -254,55 +254,43 @@
         data-priority="{{ task.priority }}"
         data-status="{{ task.status }}"
       >
-        <div class="task-card-header">
+        <div class="compact-main">
           <div>
-            <span class="entity-type-pill">Задача</span>
-            <span class="case-label">{{ task.case_title or "Без дела" }}</span>
+            <div class="compact-kicker">
+              <span class="entity-type-pill">Задача</span>
+              <span>{{ task.case_title or "Без дела" }}</span>
+            </div>
             <h3>{{ task.title }}</h3>
+            <p>{{ task.description or "Описание задачи пока не заполнено." }}</p>
           </div>
 
-          <span class="status-pill">
-            {% if task.status == "open" %}Открыта
-            {% elif task.status == "in_progress" %}В работе
-            {% elif task.status == "done" %}Выполнена
-            {% else %}{{ task.status }}
-            {% endif %}
-          </span>
-        </div>
-
-        <p>{{ task.description or "Описание задачи пока не заполнено." }}</p>
-
-        <div class="case-meta">
-          <div>
-            <span>Срок</span>
-            <strong>{{ task.due_date or "Не указан" }}</strong>
-          </div>
-          <div>
-            <span>Приоритет</span>
-            <strong>
-              {% if task.priority == "normal" %}Обычный
-              {% elif task.priority == "high" %}Высокий
-              {% elif task.priority == "urgent" %}Срочный
-              {% else %}{{ task.priority }}
-              {% endif %}
-            </strong>
-          </div>
-          <div>
-            <span>Статус</span>
-            <strong>
+          <div class="compact-side">
+            <span class="status-pill">
               {% if task.status == "open" %}Открыта
               {% elif task.status == "in_progress" %}В работе
               {% elif task.status == "done" %}Выполнена
               {% else %}{{ task.status }}
               {% endif %}
-            </strong>
+            </span>
+            <small>
+              {% if task.priority == "normal" %}Обычный
+              {% elif task.priority == "high" %}Высокий
+              {% elif task.priority == "urgent" %}Срочный
+              {% else %}{{ task.priority }}
+              {% endif %}
+              · {{ task.due_date or "срок не указан" }}
+            </small>
           </div>
         </div>
 
-        <div class="case-actions">
-          <button class="edit-task-button" type="button">Редактировать</button>
-          <button class="delete-task-button secondary" type="button">Удалить</button>
-        </div>
+        <details class="compact-details">
+          <summary>Действия</summary>
+
+          <div class="case-actions">
+            <button class="edit-task-button" type="button">Редактировать</button>
+            <button class="delete-task-button secondary" type="button">Удалить</button>
+          </div>
+        </details>
       </article>
     {% endfor %}
   {% else %}
