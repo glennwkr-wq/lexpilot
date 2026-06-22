@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="page-header">
+  <p class="eyebrow">Case Management</p>
+  <h1>Дела</h1>
+  <p>
+    Раздел для ведения юридических дел: стороны, стадия, документы, ближайшие действия
+    и история работы. Сейчас это MVP-экран, подготовленный под подключение PostgreSQL.
+  </p>
+</section>
+
+<section class="cases-toolbar">
+  <div>
+    <h2>История дел</h2>
+    <p>Пока используются демонстрационные карточки. Позже здесь будут реальные дела пользователя.</p>
+  </div>
+
+  <button type="button">Создать дело</button>
+</section>
+
+<section class="cases-grid">
+  <article class="case-card">
+    <div class="case-card-header">
+      <div>
+        <span class="case-label">Договорный спор</span>
+        <h3>ООО Вектор против ООО Ромашка</h3>
+      </div>
+      <span class="status-pill">Претензия</span>
+    </div>
+
+    <p>
+      Взыскание 450 000 руб. по договору поставки. Товар оплачен, но не поставлен.
+    </p>
+
+    <div class="case-meta">
+      <div>
+        <span>Стадия</span>
+        <strong>Досудебный порядок</strong>
+      </div>
+      <div>
+        <span>Ближайшее действие</span>
+        <strong>Уточнить реквизиты и срок поставки</strong>
+      </div>
+      <div>
+        <span>Документы</span>
+        <strong>Претензия · Доказательства оплаты</strong>
+      </div>
+    </div>
+
+    <div class="case-actions">
+      <a href="/document-builder">Подготовить документ</a>
+      <a href="/ask">Задать вопрос по делу</a>
+    </div>
+  </article>
+
+  <article class="case-card muted-card">
+    <div class="case-card-header">
+      <div>
+        <span class="case-label">Будущий функционал</span>
+        <h3>Новое дело</h3>
+      </div>
+      <span class="status-pill">Скоро</span>
+    </div>
+
+    <p>
+      После подключения базы данных здесь можно будет создавать карточки дел,
+      хранить документы, задачи, сроки и историю AI-запросов.
+    </p>
+
+    <div class="case-meta">
+      <div>
+        <span>План</span>
+        <strong>PostgreSQL cases</strong>
+      </div>
+      <div>
+        <span>Следующий этап</span>
+        <strong>Форма создания дела</strong>
+      </div>
+      <div>
+        <span>Статус</span>
+        <strong>MVP-макет готов</strong>
+      </div>
+    </div>
+  </article>
+</section>
+{% endblock %}

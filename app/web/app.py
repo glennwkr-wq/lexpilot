@@ -22,6 +22,10 @@ def create_app() -> Flask:
     def document_builder_page():
         return render_template("document_builder.html", app_name=settings.APP_NAME)
 
+    @app.get("/cases")
+    def cases_page():
+        return render_template("cases.html", app_name=settings.APP_NAME)
+
     @app.get("/admin/ingest-knowledge")
     def admin_ingest_knowledge():
         token = request.args.get("token")

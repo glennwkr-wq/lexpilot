@@ -557,3 +557,129 @@ button.secondary {
     grid-template-columns: 1fr;
   }
 }
+
+.cases-toolbar {
+  max-width: 1180px;
+  margin-top: 24px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  padding: 24px;
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  align-items: center;
+}
+
+.cases-toolbar h2 {
+  margin: 0 0 8px;
+}
+
+.cases-toolbar p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.cases-grid {
+  max-width: 1180px;
+  margin-top: 22px;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 18px;
+}
+
+.case-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  padding: 24px;
+}
+
+.case-card.muted-card {
+  background: #fafafa;
+}
+
+.case-card-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  align-items: flex-start;
+}
+
+.case-label {
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.case-card h3 {
+  margin: 8px 0 0;
+  font-size: 22px;
+}
+
+.case-card p {
+  color: var(--muted);
+  line-height: 1.6;
+  margin: 16px 0 0;
+}
+
+.case-meta {
+  margin-top: 20px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.case-meta div {
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 14px;
+  background: white;
+}
+
+.case-meta span {
+  display: block;
+  color: var(--muted);
+  font-size: 13px;
+  margin-bottom: 6px;
+}
+
+.case-meta strong {
+  font-size: 14px;
+}
+
+.case-actions {
+  margin-top: 20px;
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.case-actions a {
+  text-decoration: none;
+  color: white;
+  background: var(--accent);
+  padding: 12px 14px;
+  border-radius: 12px;
+  font-weight: 700;
+}
+
+.case-actions a:nth-child(2) {
+  background: #e5e7eb;
+  color: var(--text);
+}
+
+@media (max-width: 900px) {
+  .cases-toolbar,
+  .case-card-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .case-meta {
+    grid-template-columns: 1fr;
+  }
+}
