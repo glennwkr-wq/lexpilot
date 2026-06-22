@@ -277,3 +277,45 @@ document.querySelectorAll(".delete-task-button").forEach((button) => {
     }
   });
 });
+
+const workspaceSearchInput = document.getElementById("workspaceSearchInput");
+const workspaceTypeFilter = document.getElementById("workspaceTypeFilter");
+const workspaceStatusFilter = document.getElementById("workspaceStatusFilter");
+
+function applyWorkspaceFilters() {
+  const searchValue = workspaceSearchInput
+    ? workspaceSearchInput.value.trim().toLowerCase()
+    : "";
+
+  const typeValue = workspaceTypeFilter
+    ? workspaceTypeFilter.value
+    : "all";
+
+  const statusValue = workspaceStatusFilter
+    ? workspaceStatusFilter.value
+    : "all";
+
+  document.querySelectorAll(".compact-record").forEach((card) => {
+    const text = card.textContent.toLowerCase();
+    const recordType = card.dataset.recordType || "";
+    const status = card.dataset.status || "";
+
+    const matchesSearch = !searchValue || text.includes(searchValue);
+    const matchesType = typeValue === "all" || recordType === typeValue;
+    const matchesStatus = statusValue === "all" || status === statusValue;
+
+    card.hidden = !(matchesSearch && matchesType && matchesStatus);
+  });
+}
+
+if (workspaceSearchInput) {
+  workspaceSearchInput.addEventListener("input", applyWorkspaceFilters);
+}
+
+if (workspaceTypeFilter) {
+  workspaceTypeFilter.addEventListener("change", applyWorkspaceFilters);
+}
+
+if (workspaceStatusFilter) {
+  workspaceStatusFilter.addEventListener("change", applyWorkspaceFilters);
+}

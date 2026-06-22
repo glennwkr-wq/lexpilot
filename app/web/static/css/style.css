@@ -981,3 +981,56 @@ button.secondary {
     align-items: flex-start;
   }
 }
+
+.cases-filters {
+  max-width: 1180px;
+  margin-top: 22px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  padding: 18px;
+  display: grid;
+  grid-template-columns: 1fr 220px 240px;
+  gap: 12px;
+}
+
+.cases-filters input,
+.cases-filters select {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 13px 14px;
+  font: inherit;
+  background: white;
+}
+
+.compact-record {
+  padding: 18px;
+}
+
+.compact-record .case-card-header,
+.compact-record .task-card-header {
+  margin-bottom: 8px;
+}
+
+.compact-record h3 {
+  font-size: 19px;
+}
+
+.compact-record p {
+  margin-top: 10px;
+}
+
+.compact-record .case-meta {
+  margin-top: 14px;
+}
+
+.compact-record .case-actions {
+  margin-top: 14px;
+}
+
+@media (max-width: 900px) {
+  .cases-filters {
+    grid-template-columns: 1fr;
+  }
+}

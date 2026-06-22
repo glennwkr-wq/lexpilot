@@ -10,6 +10,29 @@
   </p>
 </section>
 
+<section class="cases-filters">
+  <input id="workspaceSearchInput" type="search" placeholder="Поиск по делам и задачам...">
+
+  <select id="workspaceTypeFilter">
+    <option value="all">Все записи</option>
+    <option value="case">Только дела</option>
+    <option value="task">Только задачи</option>
+  </select>
+
+  <select id="workspaceStatusFilter">
+    <option value="all">Любой статус</option>
+    <option value="new">Новое</option>
+    <option value="pretrial">Досудебный порядок</option>
+    <option value="court">Суд</option>
+    <option value="appeal">Апелляция</option>
+    <option value="enforcement">Исполнение</option>
+    <option value="closed">Закрыто</option>
+    <option value="open">Открыта</option>
+    <option value="in_progress">В работе</option>
+    <option value="done">Выполнена</option>
+  </select>
+</section>
+
 <section class="cases-toolbar">
   <div>
     <h2>История дел</h2>
@@ -81,7 +104,8 @@
   {% if cases %}
     {% for case in cases %}
       <article
-        class="case-card"
+        class="case-card compact-record"
+        data-record-type="case"
         data-case-id="{{ case.id }}"
         data-title="{{ case.title }}"
         data-client-name="{{ case.client_name or '' }}"
@@ -220,7 +244,8 @@
   {% if tasks %}
     {% for task in tasks %}
       <article
-        class="task-card"
+        class="task-card compact-record"
+        data-record-type="task"
         data-task-id="{{ task.id }}"
         data-case-id="{{ task.case_id or '' }}"
         data-title="{{ task.title }}"
