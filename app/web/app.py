@@ -6,6 +6,7 @@ from app.services.knowledge.search import search_knowledge, build_knowledge_cont
 from app.db.session import SessionLocal
 from app.providers.llm.openai import generate_legal_answer, analyze_legal_document
 from app.services.documents.builder import build_document_from_request
+from app.services.settings_store import get_lawyer_profile, save_lawyer_profile
 
 def get_knowledge_stats() -> dict:
     with SessionLocal() as session:
