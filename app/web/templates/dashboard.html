@@ -20,7 +20,7 @@
 <section class="dashboard-grid stats-grid">
   <article class="metric-card">
     <span>Активные дела</span>
-    <strong>0</strong>
+    <strong>{{ workspace.active_cases_count }}</strong>
     <p>После подключения карточек дел здесь появятся реальные производства.</p>
   </article>
 
@@ -32,7 +32,7 @@
 
   <article class="metric-card">
     <span>База знаний</span>
-    <strong>49</strong>
+    <strong>{{ stats.total_documents }}</strong>
     <p>Загруженные материалы после последней индексации.</p>
   </article>
 
@@ -54,21 +54,30 @@
         <span class="status-pill">MVP</span>
       </div>
 
-      <div class="empty-state">
-        <h3>Дела пока не созданы</h3>
-        <p>
-          В следующем этапе здесь появятся карточки дел: клиент, сторона спора,
-          стадия, дедлайны, документы и хронология.
-        </p>
-      </div>
-
-      <div class="case-preview">
-        <div>
-          <strong>Пример будущей карточки</strong>
-          <p>ООО Вектор против ООО Ромашка · взыскание задолженности</p>
+      {% if workspace.recent_cases %}
+        {% for case in workspace.recent_cases %}
+          <div class="case-preview">
+            <div>
+              <strong>{{ case.title }}</strong>
+              <p>
+                {{ case.client_name or "Клиент не указан" }}
+                {% if case.opponent_name %}
+                  против {{ case.opponent_name }}
+                {% endif %}
+              </p>
+              {% if case.next_action %}
+                <p>Следующее действие: {{ case.next_action }}</p>
+              {% endif %}
+            </div>
+            <span>{{ case.status }}</span>
+          </div>
+        {% endfor %}
+      {% else %}
+        <div class="empty-state">
+          <h3>Дела пока не созданы</h3>
+          <p>Создайте первое дело в разделе “Дела”. После этого оно появится здесь.</p>
         </div>
-        <span>Претензионный этап</span>
-      </div>
+      {% endif %}
     </section>
 
     <section class="dashboard-panel">
@@ -79,20 +88,29 @@
         </div>
       </div>
 
-      <ul class="task-list">
-        <li>
-          <span></span>
-          Подготовить досудебную претензию после уточнения реквизитов сторон.
-        </li>
-        <li>
-          <span></span>
-          Проверить комплект доказательств перед иском.
-        </li>
-        <li>
-          <span></span>
-          Добавить страницу дел и хранение истории в PostgreSQL.
-        </li>
-      </ul>
+      {% if workspace.urgent_tasks %}
+        <ul class="task-list">
+          {% for task in workspace.urgent_tasks %}
+            <li>
+              <span></span>
+              <div>
+                <strong>{{ task.title }}</strong>
+                {% if task.due_date %}
+                  <p>Срок: {{ task.due_date }}</p>
+                {% endif %}
+                {% if task.case_title %}
+                  <p>Дело: {{ task.case_title }}</p>
+                {% endif %}
+              </div>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <div class="empty-state">
+          <h3>Задач пока нет</h3>
+          <p>Создайте задачу в разделе “Дела”. На дашборде будут показаны 3 ближайшие.</p>
+        </div>
+      {% endif %}
     </section>
   </div>
 
@@ -124,16 +142,16 @@
 
       <div class="knowledge-list">
         <div>
-          <strong>Verified templates</strong>
+          <strong>Проверенные шаблоны</strong>
           <p>7 базовых шаблонов документов.</p>
         </div>
         <div>
-          <strong>Intake forms</strong>
+          <strong>Карты данных</strong>
           <p>7 карт обязательных данных.</p>
         </div>
         <div>
-          <strong>Retrieval v2</strong>
-          <p>Шаблон и intake form выбираются по типу документа.</p>
+          <strong>Умный подбор</strong>
+          <p>LexPilot автоматически подбирает шаблон и карту обязательных данных по типу документа.</p>
         </div>
       </div>
     </section>

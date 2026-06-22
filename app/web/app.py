@@ -7,6 +7,7 @@ from app.db.session import SessionLocal
 from app.providers.llm.openai import generate_legal_answer, analyze_legal_document
 from app.services.documents.builder import build_document_from_request
 from app.services.settings_store import get_lawyer_profile, save_lawyer_profile
+from app.services.workspace_store import get_dashboard_workspace
 
 def get_knowledge_stats() -> dict:
     with SessionLocal() as session:
@@ -49,7 +50,15 @@ def create_app() -> Flask:
 
     @app.get("/")
     def dashboard():
-        return render_template("dashboard.html", app_name=settings.APP_NAME)
+        workspace = get_dashboard_workspace()
+        stats = get_knowledge_stats()
+
+        return render_template(
+            "dashboard.html",
+            app_name=settings.APP_NAME,
+            workspace=workspace,
+            stats=stats,
+        )
 
     @app.get("/ask")
     def ask_page():
