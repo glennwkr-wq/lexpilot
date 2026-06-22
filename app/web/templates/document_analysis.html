@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="page-header">
+  <p class="eyebrow">Document Analysis</p>
+  <h1>Анализ документа</h1>
+  <p>
+    Вставьте текст договора, претензии, иска, жалобы или иного юридического документа.
+    LexPilot выделит содержание, риски, спорные места и вопросы для проверки юристом.
+  </p>
+</section>
+
+<section class="ask-layout">
+  <div class="ask-panel">
+    <label for="documentText">Текст документа</label>
+    <textarea
+      id="documentText"
+      placeholder="Вставьте сюда текст документа для анализа..."
+    ></textarea>
+
+    <button id="analyzeDocumentButton" type="button">Проанализировать документ</button>
+
+    <p class="hint">
+      Анализ является вспомогательной заметкой. Финальная правовая оценка остаётся за юристом.
+    </p>
+  </div>
+
+  <div class="answer-panel">
+    <div class="answer-header">
+      <h2>Результат анализа</h2>
+      <span id="analysisStatusBadge">Ожидает документ</span>
+    </div>
+
+    <div id="documentAnalysisBox" class="answer-box">
+      Здесь появится анализ документа.
+    </div>
+
+    <div class="sources-block">
+      <h3>Использованные материалы</h3>
+      <div id="analysisSourcesBox" class="sources-box">
+        Источники появятся после анализа.
+      </div>
+    </div>
+  </div>
+</section>
+
+<script src="{{ url_for('static', filename='js/document_analysis.js') }}"></script>
+{% endblock %}

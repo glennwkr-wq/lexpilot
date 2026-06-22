@@ -136,3 +136,62 @@ document_type: {detected_document_type or "не определен"}
     )
 
     return response.choices[0].message.content or ""
+
+def analyze_legal_document(
+    document_text: str,
+    knowledge_context: str = "",
+) -> str:
+    if not settings.OPENAI_API_KEY:
+        return (
+            "OpenAI API key не настроен. "
+            "Добавьте OPENAI_API_KEY в переменные окружения Render."
+        )
+
+    system_prompt = """
+Ты LexPilot — юридический AI-инструмент для анализа документов.
+
+Твоя задача — помочь юристу быстро оценить документ.
+
+Правила:
+1. Не выдумывай факты, которых нет в документе.
+2. Не обещай исход дела.
+3. Не придумывай судебную практику, если её нет в базе знаний.
+4. Анализируй строго по тексту документа.
+5. Отделяй факты, риски, спорные места и рекомендации.
+6. Итог является аналитической заметкой и требует проверки юристом.
+"""
+
+    user_prompt = f"""
+ТЕКСТ ДОКУМЕНТА:
+{document_text}
+
+МАТЕРИАЛЫ БАЗЫ ЗНАНИЙ LEXPILOT:
+{knowledge_context if knowledge_context else "Релевантные материалы базы знаний не найдены."}
+
+Сформируй анализ строго в формате:
+
+## 1. Тип документа
+
+## 2. Краткое содержание
+
+## 3. Ключевые условия / обстоятельства
+
+## 4. Потенциальные риски
+
+## 5. Спорные или слабые места
+
+## 6. Что проверить юристу
+
+## 7. Практические рекомендации
+"""
+
+    response = client.chat.completions.create(
+        model="gpt-4.1-mini",
+        messages=[
+            {"role": "system", "content": system_prompt.strip()},
+            {"role": "user", "content": user_prompt.strip()},
+        ],
+        temperature=0.15,
+    )
+
+    return response.choices[0].message.content or ""
