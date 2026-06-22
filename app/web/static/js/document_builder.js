@@ -1,4 +1,5 @@
 const documentRequestInput = document.getElementById("documentRequest");
+const additionalDocumentDataInput = document.getElementById("additionalDocumentData");
 const generateDocumentButton = document.getElementById("generateDocumentButton");
 const documentDraftBox = document.getElementById("documentDraftBox");
 const documentSourcesBox = document.getElementById("documentSourcesBox");
@@ -34,6 +35,10 @@ function renderDocumentSources(sources) {
 generateDocumentButton.addEventListener("click", async () => {
   const requestText = documentRequestInput.value.trim();
 
+  const additionalText = additionalDocumentDataInput
+    ? additionalDocumentDataInput.value.trim()
+    : "";
+
   if (!requestText) {
     documentDraftBox.textContent = "Введите исходные данные для документа.";
     documentStatusBadge.textContent = "Нет данных";
@@ -50,7 +55,9 @@ generateDocumentButton.addEventListener("click", async () => {
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ request: requestText }),
+      body: JSON.stringify({
+        request: buildCombinedRequest(requestText, additionalText),
+      }),
     });
 
     const data = await response.json();
@@ -72,3 +79,20 @@ generateDocumentButton.addEventListener("click", async () => {
     setDocumentLoading(false);
   }
 });
+
+function buildCombinedRequest(requestText, additionalText) {
+  if (!additionalText) {
+    return requestText;
+  }
+
+  return `
+ИСХОДНЫЙ ЗАПРОС:
+${requestText}
+
+ДОПОЛНИТЕЛЬНЫЕ ДАННЫЕ ОТ ПОЛЬЗОВАТЕЛЯ:
+${additionalText}
+
+ЗАДАЧА:
+С учётом дополнительных данных повторно проверь обязательные данные и подготовь более полный черновик документа.
+`.trim();
+}

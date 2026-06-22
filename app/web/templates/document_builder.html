@@ -18,6 +18,17 @@
       placeholder="Например: подготовь претензию о взыскании задолженности по договору поставки. Поставщик ООО Ромашка, покупатель ООО Вектор, долг 450 000 руб., товар передан по УПД..."
     ></textarea>
 
+    <div class="followup-panel">
+      <label for="additionalDocumentData">Дополнительные данные / ответы на вопросы LexPilot</label>
+      <textarea
+        id="additionalDocumentData"
+        placeholder="Если LexPilot указал, что данных не хватает, впишите сюда ответы: дата договора, номер договора, срок исполнения, доказательства, приложения и т.д."
+      ></textarea>
+      <p class="hint">
+        Это поле можно заполнять после первого ответа. При повторной генерации LexPilot учтёт исходный запрос и дополнительные данные.
+      </p>
+    </div>
+
     <button id="generateDocumentButton" type="button">Сформировать документ</button>
 
     <p class="hint">
