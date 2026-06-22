@@ -6,7 +6,7 @@
   <h1>Дела</h1>
   <p>
     Рабочий раздел для ведения юридических дел: стороны, стадия, описание,
-    ближайшее действие и срок. Данные сохраняются в Neon PostgreSQL.
+    ближайшее действие, задачи и сроки. Данные сохраняются в Neon PostgreSQL.
   </p>
 </section>
 
@@ -75,6 +75,80 @@
 
     <p id="caseFormStatus" class="hint"></p>
   </form>
+</section>
+
+<section class="cases-grid" id="casesList">
+  {% if cases %}
+    {% for case in cases %}
+      <article
+        class="case-card"
+        data-case-id="{{ case.id }}"
+        data-title="{{ case.title }}"
+        data-client-name="{{ case.client_name or '' }}"
+        data-opponent-name="{{ case.opponent_name or '' }}"
+        data-category="{{ case.category or '' }}"
+        data-status="{{ case.status }}"
+        data-description="{{ case.description or '' }}"
+        data-next-action="{{ case.next_action or '' }}"
+        data-deadline="{{ case.deadline or '' }}"
+      >
+        <div class="case-card-header">
+          <div>
+            <span class="entity-type-pill">Дело</span>
+            <span class="case-label">{{ case.category or "Без категории" }}</span>
+            <h3>{{ case.title }}</h3>
+          </div>
+
+          <span class="status-pill">
+            {% if case.status == "new" %}Новое
+            {% elif case.status == "pretrial" %}Досудебный порядок
+            {% elif case.status == "court" %}Суд
+            {% elif case.status == "appeal" %}Апелляция
+            {% elif case.status == "enforcement" %}Исполнение
+            {% elif case.status == "closed" %}Закрыто
+            {% else %}{{ case.status }}
+            {% endif %}
+          </span>
+        </div>
+
+        <p>{{ case.description or "Описание дела пока не заполнено." }}</p>
+
+        <div class="case-meta">
+          <div>
+            <span>Клиент</span>
+            <strong>{{ case.client_name or "Не указан" }}</strong>
+          </div>
+          <div>
+            <span>Оппонент</span>
+            <strong>{{ case.opponent_name or "Не указан" }}</strong>
+          </div>
+          <div>
+            <span>Срок</span>
+            <strong>{{ case.deadline or "Не указан" }}</strong>
+          </div>
+        </div>
+
+        {% if case.next_action %}
+          <div class="case-next-action">
+            <span>Ближайшее действие</span>
+            <strong>{{ case.next_action }}</strong>
+          </div>
+        {% endif %}
+
+        <div class="case-actions">
+          <a href="/document-builder">Подготовить документ</a>
+          <a href="/ask">Задать вопрос</a>
+          <button class="edit-case-button" type="button">Редактировать</button>
+          <button class="delete-case-button secondary" type="button">Удалить</button>
+        </div>
+      </article>
+    {% endfor %}
+  {% else %}
+    <div class="empty-state wide-empty">
+      <h3>Дела пока не созданы</h3>
+      <p>Нажмите “Создать дело”, заполните карточку — и дело сохранится в базе данных.</p>
+    </div>
+  {% endif %}
 </section>
 
 <section class="cases-toolbar secondary-toolbar">
@@ -157,23 +231,21 @@
       >
         <div class="task-card-header">
           <div>
-            <span class="case-label">
-              {% if task.case_title %}
-                {{ task.case_title }}
-              {% else %}
-                Без дела
-              {% endif %}
-            </span>
+            <span class="entity-type-pill">Задача</span>
+            <span class="case-label">{{ task.case_title or "Без дела" }}</span>
             <h3>{{ task.title }}</h3>
           </div>
-          <span class="status-pill">{{ task.status }}</span>
+
+          <span class="status-pill">
+            {% if task.status == "open" %}Открыта
+            {% elif task.status == "in_progress" %}В работе
+            {% elif task.status == "done" %}Выполнена
+            {% else %}{{ task.status }}
+            {% endif %}
+          </span>
         </div>
 
-        {% if task.description %}
-          <p>{{ task.description }}</p>
-        {% else %}
-          <p>Описание задачи пока не заполнено.</p>
-        {% endif %}
+        <p>{{ task.description or "Описание задачи пока не заполнено." }}</p>
 
         <div class="case-meta">
           <div>
@@ -182,11 +254,23 @@
           </div>
           <div>
             <span>Приоритет</span>
-            <strong>{{ task.priority }}</strong>
+            <strong>
+              {% if task.priority == "normal" %}Обычный
+              {% elif task.priority == "high" %}Высокий
+              {% elif task.priority == "urgent" %}Срочный
+              {% else %}{{ task.priority }}
+              {% endif %}
+            </strong>
           </div>
           <div>
             <span>Статус</span>
-            <strong>{{ task.status }}</strong>
+            <strong>
+              {% if task.status == "open" %}Открыта
+              {% elif task.status == "in_progress" %}В работе
+              {% elif task.status == "done" %}Выполнена
+              {% else %}{{ task.status }}
+              {% endif %}
+            </strong>
           </div>
         </div>
 
@@ -200,73 +284,6 @@
     <div class="empty-state wide-empty">
       <h3>Задач пока нет</h3>
       <p>Нажмите “Создать задачу”, укажите срок и приоритет — задача сохранится в базе данных.</p>
-    </div>
-  {% endif %}
-</section>
-
-<section class="cases-grid" id="casesList">
-  {% if cases %}
-    {% for case in cases %}
-      <article
-        class="case-card"
-        data-case-id="{{ case.id }}"
-        data-title="{{ case.title }}"
-        data-client-name="{{ case.client_name or '' }}"
-        data-opponent-name="{{ case.opponent_name or '' }}"
-        data-category="{{ case.category or '' }}"
-        data-status="{{ case.status }}"
-        data-description="{{ case.description or '' }}"
-        data-next-action="{{ case.next_action or '' }}"
-        data-deadline="{{ case.deadline or '' }}"
-      >
-        <div class="case-card-header">
-          <div>
-            <span class="case-label">{{ case.category or "Без категории" }}</span>
-            <h3>{{ case.title }}</h3>
-          </div>
-          <span class="status-pill">{{ case.status }}</span>
-        </div>
-
-        {% if case.description %}
-          <p>{{ case.description }}</p>
-        {% else %}
-          <p>Описание дела пока не заполнено.</p>
-        {% endif %}
-
-        <div class="case-meta">
-          <div>
-            <span>Клиент</span>
-            <strong>{{ case.client_name or "Не указан" }}</strong>
-          </div>
-          <div>
-            <span>Оппонент</span>
-            <strong>{{ case.opponent_name or "Не указан" }}</strong>
-          </div>
-          <div>
-            <span>Срок</span>
-            <strong>{{ case.deadline or "Не указан" }}</strong>
-          </div>
-        </div>
-
-        {% if case.next_action %}
-          <div class="case-next-action">
-            <span>Ближайшее действие</span>
-            <strong>{{ case.next_action }}</strong>
-          </div>
-        {% endif %}
-
-        <div class="case-actions">
-          <a href="/document-builder">Подготовить документ</a>
-          <a href="/ask">Задать вопрос</a>
-          <button class="edit-case-button" type="button">Редактировать</button>
-          <button class="delete-case-button secondary" type="button">Удалить</button>
-        </div>
-      </article>
-    {% endfor %}
-  {% else %}
-    <div class="empty-state wide-empty">
-      <h3>Дела пока не созданы</h3>
-      <p>Нажмите “Создать дело”, заполните карточку — и дело сохранится в базе данных.</p>
     </div>
   {% endif %}
 </section>
