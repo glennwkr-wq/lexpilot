@@ -1,37 +1,142 @@
 {% extends "base.html" %}
 
 {% block content %}
-<section class="hero">
-  <p class="eyebrow">Юридический AI-сервис</p>
-  <h1>Рабочий кабинет адвоката</h1>
-  <p>
-    LexPilot помогает анализировать документы, готовить черновики процессуальных документов,
-    вести дела и собирать хронологию.
-  </p>
+<section class="dashboard-hero">
+  <div>
+    <p class="eyebrow">LexPilot Workspace</p>
+    <h1>Рабочий центр юриста</h1>
+    <p>
+      Здесь собираются дела, документы, AI-запросы, ближайшие задачи и состояние базы знаний.
+      Дашборд спроектирован как единая точка входа в ежедневную юридическую работу.
+    </p>
+  </div>
 
-  <div class="actions">
-    <button>Создать дело</button>
-    <button class="secondary">Сгенерировать документ</button>
+  <div class="hero-actions">
+    <a class="button-link" href="/document-builder">Сгенерировать документ</a>
+    <a class="button-link secondary" href="/ask">Задать AI-вопрос</a>
   </div>
 </section>
 
-<section class="cards">
-  <div class="card">
-    <span>Дела</span>
+<section class="dashboard-grid stats-grid">
+  <article class="metric-card">
+    <span>Активные дела</span>
     <strong>0</strong>
-    <p>Пока нет созданных дел</p>
+    <p>После подключения карточек дел здесь появятся реальные производства.</p>
+  </article>
+
+  <article class="metric-card">
+    <span>Документы MVP</span>
+    <strong>7</strong>
+    <p>Претензия, иск, ходатайство, отзыв, жалоба, апелляция, кассация.</p>
+  </article>
+
+  <article class="metric-card">
+    <span>База знаний</span>
+    <strong>49</strong>
+    <p>Загруженные материалы после последней индексации.</p>
+  </article>
+
+  <article class="metric-card">
+    <span>AI-инструменты</span>
+    <strong>2</strong>
+    <p>AI-консультация и генератор документов уже работают.</p>
+  </article>
+</section>
+
+<section class="dashboard-layout">
+  <div class="dashboard-column">
+    <section class="dashboard-panel">
+      <div class="panel-header">
+        <div>
+          <p class="eyebrow">Дела</p>
+          <h2>История дел</h2>
+        </div>
+        <span class="status-pill">MVP</span>
+      </div>
+
+      <div class="empty-state">
+        <h3>Дела пока не созданы</h3>
+        <p>
+          В следующем этапе здесь появятся карточки дел: клиент, сторона спора,
+          стадия, дедлайны, документы и хронология.
+        </p>
+      </div>
+
+      <div class="case-preview">
+        <div>
+          <strong>Пример будущей карточки</strong>
+          <p>ООО Вектор против ООО Ромашка · взыскание задолженности</p>
+        </div>
+        <span>Претензионный этап</span>
+      </div>
+    </section>
+
+    <section class="dashboard-panel">
+      <div class="panel-header">
+        <div>
+          <p class="eyebrow">Задачи</p>
+          <h2>Ближайшие действия</h2>
+        </div>
+      </div>
+
+      <ul class="task-list">
+        <li>
+          <span></span>
+          Подготовить досудебную претензию после уточнения реквизитов сторон.
+        </li>
+        <li>
+          <span></span>
+          Проверить комплект доказательств перед иском.
+        </li>
+        <li>
+          <span></span>
+          Добавить страницу дел и хранение истории в PostgreSQL.
+        </li>
+      </ul>
+    </section>
   </div>
 
-  <div class="card">
-    <span>Документы</span>
-    <strong>0</strong>
-    <p>Загруженные документы появятся здесь</p>
-  </div>
+  <div class="dashboard-column">
+    <section class="dashboard-panel">
+      <div class="panel-header">
+        <div>
+          <p class="eyebrow">Документы</p>
+          <h2>Быстрый старт</h2>
+        </div>
+      </div>
 
-  <div class="card">
-    <span>AI-запросы</span>
-    <strong>0</strong>
-    <p>История запросов будет добавлена позже</p>
+      <div class="quick-actions">
+        <a href="/document-builder">Создать претензию</a>
+        <a href="/document-builder">Создать иск</a>
+        <a href="/document-builder">Создать ходатайство</a>
+        <a href="/document-builder">Создать жалобу</a>
+      </div>
+    </section>
+
+    <section class="dashboard-panel">
+      <div class="panel-header">
+        <div>
+          <p class="eyebrow">База знаний</p>
+          <h2>Состояние</h2>
+        </div>
+        <span class="status-pill success">Активна</span>
+      </div>
+
+      <div class="knowledge-list">
+        <div>
+          <strong>Verified templates</strong>
+          <p>7 базовых шаблонов документов.</p>
+        </div>
+        <div>
+          <strong>Intake forms</strong>
+          <p>7 карт обязательных данных.</p>
+        </div>
+        <div>
+          <strong>Retrieval v2</strong>
+          <p>Шаблон и intake form выбираются по типу документа.</p>
+        </div>
+      </div>
+    </section>
   </div>
 </section>
 {% endblock %}
