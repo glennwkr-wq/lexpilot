@@ -2,86 +2,147 @@
 
 {% block content %}
 <section class="page-header">
-  <p class="eyebrow">Case Management</p>
+  <p class="eyebrow">Управление делами</p>
   <h1>Дела</h1>
   <p>
-    Раздел для ведения юридических дел: стороны, стадия, документы, ближайшие действия
-    и история работы. Сейчас это MVP-экран, подготовленный под подключение PostgreSQL.
+    Рабочий раздел для ведения юридических дел: стороны, стадия, описание,
+    ближайшее действие и срок. Данные сохраняются в Neon PostgreSQL.
   </p>
 </section>
 
 <section class="cases-toolbar">
   <div>
     <h2>История дел</h2>
-    <p>Пока используются демонстрационные карточки. Позже здесь будут реальные дела пользователя.</p>
+    <p>Создавайте, редактируйте и закрывайте дела. На дашборде будут показаны последние активные дела.</p>
   </div>
 
-  <button type="button">Создать дело</button>
+  <button id="newCaseButton" type="button">Создать дело</button>
 </section>
 
-<section class="cases-grid">
-  <article class="case-card">
-    <div class="case-card-header">
+<section class="cases-editor" id="caseEditor" hidden>
+  <form id="caseForm" class="case-form">
+    <input type="hidden" id="caseId">
+
+    <div class="form-grid">
       <div>
-        <span class="case-label">Договорный спор</span>
-        <h3>ООО Вектор против ООО Ромашка</h3>
+        <label for="caseTitle">Название дела *</label>
+        <input id="caseTitle" name="title" placeholder="ООО Вектор против ООО Ромашка">
       </div>
-      <span class="status-pill">Претензия</span>
+
+      <div>
+        <label for="caseCategory">Категория</label>
+        <input id="caseCategory" name="category" placeholder="Договорный спор">
+      </div>
+
+      <div>
+        <label for="caseClient">Клиент</label>
+        <input id="caseClient" name="client_name" placeholder="ООО Вектор">
+      </div>
+
+      <div>
+        <label for="caseOpponent">Оппонент</label>
+        <input id="caseOpponent" name="opponent_name" placeholder="ООО Ромашка">
+      </div>
+
+      <div>
+        <label for="caseStatus">Статус</label>
+        <select id="caseStatus" name="status">
+          <option value="new">Новое</option>
+          <option value="pretrial">Досудебный порядок</option>
+          <option value="court">Суд</option>
+          <option value="appeal">Апелляция</option>
+          <option value="enforcement">Исполнение</option>
+          <option value="closed">Закрыто</option>
+        </select>
+      </div>
+
+      <div>
+        <label for="caseDeadline">Срок</label>
+        <input id="caseDeadline" name="deadline" type="date">
+      </div>
     </div>
 
-    <p>
-      Взыскание 450 000 руб. по договору поставки. Товар оплачен, но не поставлен.
-    </p>
+    <label for="caseNextAction">Ближайшее действие</label>
+    <input id="caseNextAction" name="next_action" placeholder="Подготовить претензию, проверить доказательства...">
 
-    <div class="case-meta">
-      <div>
-        <span>Стадия</span>
-        <strong>Досудебный порядок</strong>
-      </div>
-      <div>
-        <span>Ближайшее действие</span>
-        <strong>Уточнить реквизиты и срок поставки</strong>
-      </div>
-      <div>
-        <span>Документы</span>
-        <strong>Претензия · Доказательства оплаты</strong>
-      </div>
+    <label for="caseDescription">Описание</label>
+    <textarea id="caseDescription" name="description" placeholder="Кратко опишите фабулу дела, требования, риски и текущую стадию."></textarea>
+
+    <div class="form-actions">
+      <button type="submit">Сохранить дело</button>
+      <button id="cancelCaseButton" class="secondary" type="button">Отменить</button>
     </div>
 
-    <div class="case-actions">
-      <a href="/document-builder">Подготовить документ</a>
-      <a href="/ask">Задать вопрос по делу</a>
-    </div>
-  </article>
-
-  <article class="case-card muted-card">
-    <div class="case-card-header">
-      <div>
-        <span class="case-label">Будущий функционал</span>
-        <h3>Новое дело</h3>
-      </div>
-      <span class="status-pill">Скоро</span>
-    </div>
-
-    <p>
-      После подключения базы данных здесь можно будет создавать карточки дел,
-      хранить документы, задачи, сроки и историю AI-запросов.
-    </p>
-
-    <div class="case-meta">
-      <div>
-        <span>План</span>
-        <strong>PostgreSQL cases</strong>
-      </div>
-      <div>
-        <span>Следующий этап</span>
-        <strong>Форма создания дела</strong>
-      </div>
-      <div>
-        <span>Статус</span>
-        <strong>MVP-макет готов</strong>
-      </div>
-    </div>
-  </article>
+    <p id="caseFormStatus" class="hint"></p>
+  </form>
 </section>
+
+<section class="cases-grid" id="casesList">
+  {% if cases %}
+    {% for case in cases %}
+      <article
+        class="case-card"
+        data-case-id="{{ case.id }}"
+        data-title="{{ case.title }}"
+        data-client-name="{{ case.client_name or '' }}"
+        data-opponent-name="{{ case.opponent_name or '' }}"
+        data-category="{{ case.category or '' }}"
+        data-status="{{ case.status }}"
+        data-description="{{ case.description or '' }}"
+        data-next-action="{{ case.next_action or '' }}"
+        data-deadline="{{ case.deadline or '' }}"
+      >
+        <div class="case-card-header">
+          <div>
+            <span class="case-label">{{ case.category or "Без категории" }}</span>
+            <h3>{{ case.title }}</h3>
+          </div>
+          <span class="status-pill">{{ case.status }}</span>
+        </div>
+
+        {% if case.description %}
+          <p>{{ case.description }}</p>
+        {% else %}
+          <p>Описание дела пока не заполнено.</p>
+        {% endif %}
+
+        <div class="case-meta">
+          <div>
+            <span>Клиент</span>
+            <strong>{{ case.client_name or "Не указан" }}</strong>
+          </div>
+          <div>
+            <span>Оппонент</span>
+            <strong>{{ case.opponent_name or "Не указан" }}</strong>
+          </div>
+          <div>
+            <span>Срок</span>
+            <strong>{{ case.deadline or "Не указан" }}</strong>
+          </div>
+        </div>
+
+        {% if case.next_action %}
+          <div class="case-next-action">
+            <span>Ближайшее действие</span>
+            <strong>{{ case.next_action }}</strong>
+          </div>
+        {% endif %}
+
+        <div class="case-actions">
+          <a href="/document-builder">Подготовить документ</a>
+          <a href="/ask">Задать вопрос</a>
+          <button class="edit-case-button" type="button">Редактировать</button>
+          <button class="delete-case-button secondary" type="button">Удалить</button>
+        </div>
+      </article>
+    {% endfor %}
+  {% else %}
+    <div class="empty-state wide-empty">
+      <h3>Дела пока не созданы</h3>
+      <p>Нажмите “Создать дело”, заполните карточку — и дело сохранится в базе данных.</p>
+    </div>
+  {% endif %}
+</section>
+
+<script src="{{ url_for('static', filename='js/cases.js') }}"></script>
 {% endblock %}

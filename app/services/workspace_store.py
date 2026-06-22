@@ -94,3 +94,114 @@ def get_dashboard_workspace() -> dict:
         "recent_cases": [dict(row) for row in recent_cases],
         "urgent_tasks": [dict(row) for row in urgent_tasks],
     }
+
+def get_all_cases() -> list[dict]:
+    ensure_workspace_tables()
+
+    with SessionLocal() as session:
+        rows = session.execute(text("""
+            SELECT id, title, client_name, opponent_name, category, status,
+                   description, next_action, deadline, created_at, updated_at
+            FROM cases
+            ORDER BY updated_at DESC, id DESC
+        """)).mappings().fetchall()
+
+    return [dict(row) for row in rows]
+
+
+def create_case(data: dict) -> dict:
+    ensure_workspace_tables()
+
+    title = (data.get("title") or "").strip()
+
+    if not title:
+        raise ValueError("Название дела обязательно.")
+
+    payload = {
+        "title": title,
+        "client_name": (data.get("client_name") or "").strip(),
+        "opponent_name": (data.get("opponent_name") or "").strip(),
+        "category": (data.get("category") or "").strip(),
+        "status": (data.get("status") or "new").strip(),
+        "description": (data.get("description") or "").strip(),
+        "next_action": (data.get("next_action") or "").strip(),
+        "deadline": (data.get("deadline") or "").strip() or None,
+    }
+
+    with SessionLocal() as session:
+        row = session.execute(text("""
+            INSERT INTO cases (
+                title, client_name, opponent_name, category, status,
+                description, next_action, deadline, updated_at
+            )
+            VALUES (
+                :title, :client_name, :opponent_name, :category, :status,
+                :description, :next_action, :deadline, NOW()
+            )
+            RETURNING id, title, client_name, opponent_name, category, status,
+                      description, next_action, deadline, created_at, updated_at
+        """), payload).mappings().fetchone()
+
+        session.commit()
+
+    return dict(row)
+
+
+def update_case(case_id: int, data: dict) -> dict:
+    ensure_workspace_tables()
+
+    title = (data.get("title") or "").strip()
+
+    if not title:
+        raise ValueError("Название дела обязательно.")
+
+    payload = {
+        "id": case_id,
+        "title": title,
+        "client_name": (data.get("client_name") or "").strip(),
+        "opponent_name": (data.get("opponent_name") or "").strip(),
+        "category": (data.get("category") or "").strip(),
+        "status": (data.get("status") or "new").strip(),
+        "description": (data.get("description") or "").strip(),
+        "next_action": (data.get("next_action") or "").strip(),
+        "deadline": (data.get("deadline") or "").strip() or None,
+    }
+
+    with SessionLocal() as session:
+        row = session.execute(text("""
+            UPDATE cases
+            SET
+                title = :title,
+                client_name = :client_name,
+                opponent_name = :opponent_name,
+                category = :category,
+                status = :status,
+                description = :description,
+                next_action = :next_action,
+                deadline = :deadline,
+                updated_at = NOW()
+            WHERE id = :id
+            RETURNING id, title, client_name, opponent_name, category, status,
+                      description, next_action, deadline, created_at, updated_at
+        """), payload).mappings().fetchone()
+
+        session.commit()
+
+    if not row:
+        raise ValueError("Дело не найдено.")
+
+    return dict(row)
+
+
+def delete_case(case_id: int) -> None:
+    ensure_workspace_tables()
+
+    with SessionLocal() as session:
+        result = session.execute(
+            text("DELETE FROM cases WHERE id = :id"),
+            {"id": case_id},
+        )
+        session.commit()
+
+    if result.rowcount == 0:
+        raise ValueError("Дело не найдено.")

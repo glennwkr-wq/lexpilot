@@ -7,7 +7,13 @@ from app.db.session import SessionLocal
 from app.providers.llm.openai import generate_legal_answer, analyze_legal_document
 from app.services.documents.builder import build_document_from_request
 from app.services.settings_store import get_lawyer_profile, save_lawyer_profile
-from app.services.workspace_store import get_dashboard_workspace
+from app.services.workspace_store import (
+    get_dashboard_workspace,
+    get_all_cases,
+    create_case,
+    update_case,
+    delete_case,
+)
 
 def get_knowledge_stats() -> dict:
     with SessionLocal() as session:
@@ -74,7 +80,12 @@ def create_app() -> Flask:
 
     @app.get("/cases")
     def cases_page():
-        return render_template("cases.html", app_name=settings.APP_NAME)
+        cases = get_all_cases()
+        return render_template(
+            "cases.html",
+            app_name=settings.APP_NAME,
+            cases=cases,
+        )
 
     @app.get("/knowledge")
     def knowledge_page():
@@ -191,6 +202,56 @@ def create_app() -> Flask:
         return jsonify({
             "status": "ok",
             "profile": profile,
+        })
+
+    @app.post("/api/cases")
+    def api_create_case():
+        data = request.get_json(silent=True) or {}
+
+        try:
+            case = create_case(data)
+        except ValueError as error:
+            return jsonify({
+                "status": "error",
+                "message": str(error),
+            }), 400
+
+        return jsonify({
+            "status": "ok",
+            "case": case,
+        })
+
+
+    @app.put("/api/cases/<int:case_id>")
+    def api_update_case(case_id: int):
+        data = request.get_json(silent=True) or {}
+
+        try:
+            case = update_case(case_id, data)
+        except ValueError as error:
+            return jsonify({
+                "status": "error",
+                "message": str(error),
+            }), 400
+
+        return jsonify({
+            "status": "ok",
+            "case": case,
+        })
+
+
+    @app.delete("/api/cases/<int:case_id>")
+    def api_delete_case(case_id: int):
+        try:
+            delete_case(case_id)
+        except ValueError as error:
+            return jsonify({
+                "status": "error",
+                "message": str(error),
+            }), 404
+
+        return jsonify({
+            "status": "ok",
         })
 
     return app
