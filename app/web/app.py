@@ -75,6 +75,15 @@ def create_app() -> Flask:
             stats=stats,
         )
 
+    @app.get("/settings")
+    def settings_page():
+        profile = get_lawyer_profile()
+        return render_template(
+            "settings.html",
+            app_name=settings.APP_NAME,
+            profile=profile,
+        )
+
     @app.get("/admin/ingest-knowledge")
     def admin_ingest_knowledge():
         token = request.args.get("token")
@@ -162,6 +171,16 @@ def create_app() -> Flask:
                 }
                 for item in knowledge_results
             ],
+        })
+
+    @app.post("/api/settings/profile")
+    def api_save_lawyer_profile():
+        data = request.get_json(silent=True) or {}
+        profile = save_lawyer_profile(data)
+
+        return jsonify({
+            "status": "ok",
+            "profile": profile,
         })
 
     return app

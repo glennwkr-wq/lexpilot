@@ -734,3 +734,66 @@ button.secondary {
     grid-template-columns: 1fr;
   }
 }
+
+.settings-layout {
+  max-width: 1180px;
+  margin-top: 24px;
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  gap: 22px;
+}
+
+.settings-panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  padding: 24px;
+}
+
+.settings-panel h2 {
+  margin-top: 0;
+}
+
+.settings-panel label {
+  display: block;
+  font-weight: 700;
+  margin: 16px 0 8px;
+}
+
+.settings-panel input,
+.settings-panel textarea {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 13px 14px;
+  font: inherit;
+}
+
+.settings-panel textarea {
+  min-height: 90px;
+  resize: vertical;
+}
+
+.settings-panel button {
+  margin-top: 18px;
+}
+
+.settings-note {
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 16px;
+  background: #fafafa;
+  margin-bottom: 14px;
+}
+
+.settings-note p {
+  color: var(--muted);
+  line-height: 1.5;
+  margin-bottom: 0;
+}
+
+@media (max-width: 900px) {
+  .settings-layout {
+    grid-template-columns: 1fr;
+  }
+}

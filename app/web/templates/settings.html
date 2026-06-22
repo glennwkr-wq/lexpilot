@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="page-header">
+  <p class="eyebrow">Settings</p>
+  <h1>Настройки профиля</h1>
+  <p>
+    Данные юриста сохраняются в базе и будут использоваться для автоподстановки
+    в документы: претензии, иски, жалобы и другие черновики.
+  </p>
+</section>
+
+<section class="settings-layout">
+  <form id="lawyerProfileForm" class="settings-panel">
+    <h2>Профиль юриста</h2>
+
+    <label>ФИО / наименование</label>
+    <input name="full_name" value="{{ profile.full_name }}" placeholder="Иванов Иван Иванович">
+
+    <label>Статус</label>
+    <input name="professional_status" value="{{ profile.professional_status }}" placeholder="Адвокат / юрист / представитель">
+
+    <label>Адрес</label>
+    <textarea name="address" placeholder="Адрес для документов">{{ profile.address }}</textarea>
+
+    <label>Телефон</label>
+    <input name="phone" value="{{ profile.phone }}" placeholder="+7 ...">
+
+    <label>Email</label>
+    <input name="email" value="{{ profile.email }}" placeholder="mail@example.com">
+
+    <label>ИНН</label>
+    <input name="inn" value="{{ profile.inn }}" placeholder="ИНН">
+
+    <label>ОГРН / ОГРНИП</label>
+    <input name="ogrn" value="{{ profile.ogrn }}" placeholder="ОГРН или ОГРНИП">
+
+    <label>Подпись для документов</label>
+    <input name="signature" value="{{ profile.signature }}" placeholder="И.И. Иванов">
+
+    <button type="submit">Сохранить профиль</button>
+    <p id="settingsStatus" class="hint">Изменения сохраняются в Neon PostgreSQL.</p>
+  </form>
+
+  <aside class="settings-panel">
+    <h2>Как это будет использоваться</h2>
+    <div class="settings-note">
+      <strong>Автоподстановка</strong>
+      <p>LexPilot сможет подставлять эти данные в шапку документов и подпись.</p>
+    </div>
+    <div class="settings-note">
+      <strong>Безопасность</strong>
+      <p>Пока профиль один. Авторизацию добавим следующим этапом.</p>
+    </div>
+    <div class="settings-note">
+      <strong>Документы</strong>
+      <p>Профиль будет связан с генератором документов после следующей доработки builder.</p>
+    </div>
+  </aside>
+</section>
+
+<script src="{{ url_for('static', filename='js/settings.js') }}"></script>
+{% endblock %}
