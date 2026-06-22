@@ -13,6 +13,10 @@ from app.services.workspace_store import (
     create_case,
     update_case,
     delete_case,
+    get_all_tasks,
+    create_task,
+    update_task,
+    delete_task,
 )
 
 def get_knowledge_stats() -> dict:
@@ -81,10 +85,13 @@ def create_app() -> Flask:
     @app.get("/cases")
     def cases_page():
         cases = get_all_cases()
+        tasks = get_all_tasks()
+
         return render_template(
             "cases.html",
             app_name=settings.APP_NAME,
             cases=cases,
+            tasks=tasks,
         )
 
     @app.get("/knowledge")
@@ -244,6 +251,56 @@ def create_app() -> Flask:
     def api_delete_case(case_id: int):
         try:
             delete_case(case_id)
+        except ValueError as error:
+            return jsonify({
+                "status": "error",
+                "message": str(error),
+            }), 404
+
+        return jsonify({
+            "status": "ok",
+        })
+
+    @app.post("/api/tasks")
+    def api_create_task():
+        data = request.get_json(silent=True) or {}
+
+        try:
+            task = create_task(data)
+        except ValueError as error:
+            return jsonify({
+                "status": "error",
+                "message": str(error),
+            }), 400
+
+        return jsonify({
+            "status": "ok",
+            "task": task,
+        })
+
+
+    @app.put("/api/tasks/<int:task_id>")
+    def api_update_task(task_id: int):
+        data = request.get_json(silent=True) or {}
+
+        try:
+            task = update_task(task_id, data)
+        except ValueError as error:
+            return jsonify({
+                "status": "error",
+                "message": str(error),
+            }), 400
+
+        return jsonify({
+            "status": "ok",
+            "task": task,
+        })
+
+
+    @app.delete("/api/tasks/<int:task_id>")
+    def api_delete_task(task_id: int):
+        try:
+            delete_task(task_id)
         except ValueError as error:
             return jsonify({
                 "status": "error",

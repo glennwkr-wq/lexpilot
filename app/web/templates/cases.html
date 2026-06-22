@@ -77,6 +77,133 @@
   </form>
 </section>
 
+<section class="cases-toolbar secondary-toolbar">
+  <div>
+    <h2>Задачи</h2>
+    <p>Создавайте задачи, привязывайте их к делам, назначайте сроки и отмечайте выполнение.</p>
+  </div>
+
+  <button id="newTaskButton" type="button">Создать задачу</button>
+</section>
+
+<section class="cases-editor" id="taskEditor" hidden>
+  <form id="taskForm" class="case-form">
+    <input type="hidden" id="taskId">
+
+    <div class="form-grid">
+      <div>
+        <label for="taskTitle">Название задачи *</label>
+        <input id="taskTitle" name="title" placeholder="Подготовить претензию">
+      </div>
+
+      <div>
+        <label for="taskCaseId">Дело</label>
+        <select id="taskCaseId" name="case_id">
+          <option value="">Без привязки к делу</option>
+          {% for case in cases %}
+            <option value="{{ case.id }}">{{ case.title }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div>
+        <label for="taskDueDate">Срок</label>
+        <input id="taskDueDate" name="due_date" type="date">
+      </div>
+
+      <div>
+        <label for="taskPriority">Приоритет</label>
+        <select id="taskPriority" name="priority">
+          <option value="normal">Обычный</option>
+          <option value="high">Высокий</option>
+          <option value="urgent">Срочный</option>
+        </select>
+      </div>
+
+      <div>
+        <label for="taskStatus">Статус</label>
+        <select id="taskStatus" name="status">
+          <option value="open">Открыта</option>
+          <option value="in_progress">В работе</option>
+          <option value="done">Выполнена</option>
+        </select>
+      </div>
+    </div>
+
+    <label for="taskDescription">Описание</label>
+    <textarea id="taskDescription" name="description" placeholder="Что нужно сделать, какие документы проверить, какие сроки учесть."></textarea>
+
+    <div class="form-actions">
+      <button type="submit">Сохранить задачу</button>
+      <button id="cancelTaskButton" class="secondary" type="button">Отменить</button>
+    </div>
+
+    <p id="taskFormStatus" class="hint"></p>
+  </form>
+</section>
+
+<section class="tasks-grid" id="tasksList">
+  {% if tasks %}
+    {% for task in tasks %}
+      <article
+        class="task-card"
+        data-task-id="{{ task.id }}"
+        data-case-id="{{ task.case_id or '' }}"
+        data-title="{{ task.title }}"
+        data-description="{{ task.description or '' }}"
+        data-due-date="{{ task.due_date or '' }}"
+        data-priority="{{ task.priority }}"
+        data-status="{{ task.status }}"
+      >
+        <div class="task-card-header">
+          <div>
+            <span class="case-label">
+              {% if task.case_title %}
+                {{ task.case_title }}
+              {% else %}
+                Без дела
+              {% endif %}
+            </span>
+            <h3>{{ task.title }}</h3>
+          </div>
+          <span class="status-pill">{{ task.status }}</span>
+        </div>
+
+        {% if task.description %}
+          <p>{{ task.description }}</p>
+        {% else %}
+          <p>Описание задачи пока не заполнено.</p>
+        {% endif %}
+
+        <div class="case-meta">
+          <div>
+            <span>Срок</span>
+            <strong>{{ task.due_date or "Не указан" }}</strong>
+          </div>
+          <div>
+            <span>Приоритет</span>
+            <strong>{{ task.priority }}</strong>
+          </div>
+          <div>
+            <span>Статус</span>
+            <strong>{{ task.status }}</strong>
+          </div>
+        </div>
+
+        <div class="case-actions">
+          <button class="edit-task-button" type="button">Редактировать</button>
+          <button class="delete-task-button secondary" type="button">Удалить</button>
+        </div>
+      </article>
+    {% endfor %}
+  {% else %}
+    <div class="empty-state wide-empty">
+      <h3>Задач пока нет</h3>
+      <p>Нажмите “Создать задачу”, укажите срок и приоритет — задача сохранится в базе данных.</p>
+    </div>
+  {% endif %}
+</section>
+
 <section class="cases-grid" id="casesList">
   {% if cases %}
     {% for case in cases %}

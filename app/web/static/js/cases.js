@@ -140,3 +140,140 @@ document.querySelectorAll(".delete-case-button").forEach((button) => {
     }
   });
 });
+
+const newTaskButton = document.getElementById("newTaskButton");
+const taskEditor = document.getElementById("taskEditor");
+const taskForm = document.getElementById("taskForm");
+const cancelTaskButton = document.getElementById("cancelTaskButton");
+const taskFormStatus = document.getElementById("taskFormStatus");
+
+const taskIdInput = document.getElementById("taskId");
+const taskTitleInput = document.getElementById("taskTitle");
+const taskCaseIdInput = document.getElementById("taskCaseId");
+const taskDueDateInput = document.getElementById("taskDueDate");
+const taskPriorityInput = document.getElementById("taskPriority");
+const taskStatusInput = document.getElementById("taskStatus");
+const taskDescriptionInput = document.getElementById("taskDescription");
+
+function openTaskEditor() {
+  taskEditor.hidden = false;
+  taskFormStatus.textContent = "";
+  taskEditor.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function closeTaskEditor() {
+  taskEditor.hidden = true;
+  taskForm.reset();
+  taskIdInput.value = "";
+  taskFormStatus.textContent = "";
+}
+
+function fillTaskForm(card) {
+  taskIdInput.value = card.dataset.taskId || "";
+  taskTitleInput.value = card.dataset.title || "";
+  taskCaseIdInput.value = card.dataset.caseId || "";
+  taskDueDateInput.value = card.dataset.dueDate || "";
+  taskPriorityInput.value = card.dataset.priority || "normal";
+  taskStatusInput.value = card.dataset.status || "open";
+  taskDescriptionInput.value = card.dataset.description || "";
+}
+
+function getTaskPayload() {
+  return {
+    title: taskTitleInput.value.trim(),
+    case_id: taskCaseIdInput.value,
+    due_date: taskDueDateInput.value,
+    priority: taskPriorityInput.value,
+    status: taskStatusInput.value,
+    description: taskDescriptionInput.value.trim(),
+  };
+}
+
+newTaskButton.addEventListener("click", () => {
+  closeTaskEditor();
+  openTaskEditor();
+});
+
+cancelTaskButton.addEventListener("click", () => {
+  closeTaskEditor();
+});
+
+taskForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+
+  const payload = getTaskPayload();
+
+  if (!payload.title) {
+    taskFormStatus.textContent = "Название задачи обязательно.";
+    return;
+  }
+
+  const taskId = taskIdInput.value;
+  const url = taskId ? `/api/tasks/${taskId}` : "/api/tasks";
+  const method = taskId ? "PUT" : "POST";
+
+  taskFormStatus.textContent = "Сохраняем задачу...";
+
+  try {
+    const response = await fetch(url, {
+      method,
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok || data.status !== "ok") {
+      taskFormStatus.textContent = data.message || "Ошибка сохранения задачи.";
+      return;
+    }
+
+    window.location.reload();
+  } catch (error) {
+    taskFormStatus.textContent = "Ошибка соединения с сервером.";
+  }
+});
+
+document.querySelectorAll(".edit-task-button").forEach((button) => {
+  button.addEventListener("click", () => {
+    const card = button.closest(".task-card");
+    fillTaskForm(card);
+    openTaskEditor();
+  });
+});
+
+document.querySelectorAll(".delete-task-button").forEach((button) => {
+  button.addEventListener("click", async () => {
+    const card = button.closest(".task-card");
+    const taskId = card.dataset.taskId;
+
+    if (!taskId) {
+      return;
+    }
+
+    const confirmed = window.confirm("Удалить эту задачу? Это действие нельзя отменить.");
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/tasks/${taskId}`, {
+        method: "DELETE",
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || data.status !== "ok") {
+        alert(data.message || "Ошибка удаления задачи.");
+        return;
+      }
+
+      window.location.reload();
+    } catch (error) {
+      alert("Ошибка соединения с сервером.");
+    }
+  });
+});
