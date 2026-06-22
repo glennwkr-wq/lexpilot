@@ -1,8 +1,7 @@
 from app.providers.llm.openai import generate_document_draft
-from app.services.knowledge.search import (
-    search_knowledge,
-    search_knowledge_by_phrase,
-    build_knowledge_context,
+from app.services.knowledge.retrieval import (
+    build_retrieval_pack,
+    build_retrieval_context,
 )
 
 
@@ -68,22 +67,11 @@ def build_document_from_request(user_request: str) -> dict:
     family = detected["family"]
     document_type = detected["document_type"]
 
-    targeted_results = []
-
-    if document_type:
-        targeted_results.extend(
-            search_knowledge_by_phrase(f"DOCUMENT_TYPE: {document_type}", limit=6)
-        )
-
-    if family != "unknown":
-        targeted_results.extend(
-            search_knowledge_by_phrase(f"DOCUMENT_FAMILY: {family}", limit=6)
-        )
-
-    general_results = search_knowledge(user_request, limit=8)
-
-    knowledge_results = _deduplicate_results(targeted_results + general_results)
-    knowledge_context = build_knowledge_context(knowledge_results)
+    retrieval_pack = build_retrieval_pack(
+        family=family,
+        user_request=user_request,
+    )
+    knowledge_context = build_retrieval_context(retrieval_pack)
 
     draft = generate_document_draft(
         user_request=user_request,
@@ -97,28 +85,30 @@ def build_document_from_request(user_request: str) -> dict:
         "detected_family": family,
         "detected_document_type": document_type,
         "draft": draft,
-        "sources": [
-            {
-                "title": item["title"],
-                "document_type": item["document_type"],
-                "source_url": item["source_url"],
-            }
-            for item in knowledge_results
-        ],
+        "sources": _build_sources(retrieval_pack),
     }
 
 
-def _deduplicate_results(results: list[dict]) -> list[dict]:
-    seen = set()
-    unique = []
+def _build_sources(retrieval_pack: dict) -> list[dict]:
+    items = []
 
-    for item in results:
-        key = item.get("chunk_id")
+    template = retrieval_pack.get("template")
+    intake_form = retrieval_pack.get("intake_form")
+    supporting_materials = retrieval_pack.get("supporting_materials") or []
 
-        if key in seen:
-            continue
+    if template:
+        items.append(template)
 
-        seen.add(key)
-        unique.append(item)
+    if intake_form:
+        items.append(intake_form)
 
-    return unique
+    items.extend(supporting_materials)
+
+    return [
+        {
+            "title": item["title"],
+            "document_type": item["document_type"],
+            "source_url": item["source_url"],
+        }
+        for item in items
+    ]
