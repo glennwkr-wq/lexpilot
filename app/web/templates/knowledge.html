@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="page-header">
+  <p class="eyebrow">Knowledge Base</p>
+  <h1>База знаний</h1>
+  <p>
+    LexPilot использует собственную базу знаний: шаблоны документов, intake forms,
+    чек-листы, правила юридического стиля и другие материалы. Это отличает систему
+    от обычного чата с GPT.
+  </p>
+</section>
+
+<section class="dashboard-grid stats-grid">
+  <article class="metric-card">
+    <span>Документы</span>
+    <strong>{{ stats.total_documents }}</strong>
+    <p>Материалы, загруженные в Neon.</p>
+  </article>
+
+  <article class="metric-card">
+    <span>Фрагменты</span>
+    <strong>{{ stats.total_chunks }}</strong>
+    <p>Чанки, доступные для поиска и retrieval.</p>
+  </article>
+
+  <article class="metric-card">
+    <span>Шаблоны MVP</span>
+    <strong>7</strong>
+    <p>Базовые шаблоны документов.</p>
+  </article>
+
+  <article class="metric-card">
+    <span>Intake forms</span>
+    <strong>7</strong>
+    <p>Карты обязательных данных.</p>
+  </article>
+</section>
+
+<section class="knowledge-page-layout">
+  <div class="dashboard-panel">
+    <div class="panel-header">
+      <div>
+        <p class="eyebrow">Категории</p>
+        <h2>Структура базы</h2>
+      </div>
+      <span class="status-pill success">Активна</span>
+    </div>
+
+    <div class="knowledge-category-list">
+      {% for category in stats.categories %}
+        <div>
+          <strong>{{ category.document_type }}</strong>
+          <span>{{ category.count }} материалов</span>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="dashboard-panel">
+    <div class="panel-header">
+      <div>
+        <p class="eyebrow">Последние материалы</p>
+        <h2>Загруженные документы</h2>
+      </div>
+    </div>
+
+    <div class="knowledge-doc-list">
+      {% for document in stats.recent_documents %}
+        <div>
+          <strong>{{ document.title }}</strong>
+          <span>{{ document.document_type }}</span>
+          <small>{{ document.source_url }}</small>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endblock %}

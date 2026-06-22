@@ -1,10 +1,46 @@
 from flask import Flask, render_template, jsonify, request
-
+from sqlalchemy import text
 from app.core.config import settings
 from app.services.knowledge.ingest import ingest_knowledge_base
 from app.services.knowledge.search import search_knowledge, build_knowledge_context
+from app.db.session import SessionLocal
 from app.providers.llm.openai import generate_legal_answer, analyze_legal_document
 from app.services.documents.builder import build_document_from_request
+
+def get_knowledge_stats() -> dict:
+    with SessionLocal() as session:
+        total_documents = session.execute(
+            text("SELECT COUNT(*) FROM legal_documents")
+        ).scalar_one()
+
+        total_chunks = session.execute(
+            text("SELECT COUNT(*) FROM knowledge_chunks")
+        ).scalar_one()
+
+        categories = session.execute(
+            text("""
+                SELECT document_type, COUNT(*) AS count
+                FROM legal_documents
+                GROUP BY document_type
+                ORDER BY count DESC, document_type ASC
+            """)
+        ).fetchall()
+
+        recent_documents = session.execute(
+            text("""
+                SELECT title, document_type, source_url
+                FROM legal_documents
+                ORDER BY id DESC
+                LIMIT 12
+            """)
+        ).fetchall()
+
+    return {
+        "total_documents": total_documents,
+        "total_chunks": total_chunks,
+        "categories": categories,
+        "recent_documents": recent_documents,
+    }
 
 def create_app() -> Flask:
     app = Flask(__name__)
@@ -29,6 +65,15 @@ def create_app() -> Flask:
     @app.get("/cases")
     def cases_page():
         return render_template("cases.html", app_name=settings.APP_NAME)
+
+    @app.get("/knowledge")
+    def knowledge_page():
+        stats = get_knowledge_stats()
+        return render_template(
+            "knowledge.html",
+            app_name=settings.APP_NAME,
+            stats=stats,
+        )
 
     @app.get("/admin/ingest-knowledge")
     def admin_ingest_knowledge():

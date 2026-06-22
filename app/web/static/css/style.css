@@ -683,3 +683,54 @@ button.secondary {
     grid-template-columns: 1fr;
   }
 }
+
+.knowledge-page-layout {
+  max-width: 1180px;
+  margin-top: 24px;
+  display: grid;
+  grid-template-columns: 0.85fr 1.15fr;
+  gap: 22px;
+}
+
+.knowledge-category-list,
+.knowledge-doc-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.knowledge-category-list div,
+.knowledge-doc-list div {
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 14px;
+  background: #fafafa;
+}
+
+.knowledge-category-list strong,
+.knowledge-doc-list strong,
+.knowledge-category-list span,
+.knowledge-doc-list span,
+.knowledge-doc-list small {
+  display: block;
+}
+
+.knowledge-category-list span,
+.knowledge-doc-list span {
+  margin-top: 6px;
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.knowledge-doc-list small {
+  margin-top: 6px;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+@media (max-width: 1000px) {
+  .knowledge-page-layout {
+    grid-template-columns: 1fr;
+  }
+}
