@@ -1,3 +1,5 @@
+const analysisFileInput = document.getElementById("analysisFileInput");
+const extractAnalysisFileButton = document.getElementById("extractAnalysisFileButton");
 const documentTextInput = document.getElementById("documentText");
 const analyzeDocumentButton = document.getElementById("analyzeDocumentButton");
 const documentAnalysisBox = document.getElementById("documentAnalysisBox");
@@ -10,6 +12,50 @@ function setAnalysisLoading(isLoading) {
     ? "LexPilot анализирует..."
     : "Проанализировать документ";
   analysisStatusBadge.textContent = isLoading ? "Анализ" : "Готово";
+}
+
+if (extractAnalysisFileButton) {
+  extractAnalysisFileButton.addEventListener("click", async () => {
+    const file = analysisFileInput?.files?.[0];
+
+    if (!file) {
+      documentAnalysisBox.textContent = "Выберите PDF, DOCX или TXT файл.";
+      analysisStatusBadge.textContent = "Нет файла";
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    extractAnalysisFileButton.disabled = true;
+    extractAnalysisFileButton.textContent = "Извлекаю текст...";
+    analysisStatusBadge.textContent = "Чтение файла";
+
+    try {
+      const response = await fetch("/api/document-analysis/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || data.status !== "ok") {
+        documentAnalysisBox.textContent = data.message || "Не удалось прочитать файл.";
+        analysisStatusBadge.textContent = "Ошибка файла";
+        return;
+      }
+
+      documentTextInput.value = data.text || "";
+      documentAnalysisBox.textContent = `Текст извлечён из файла: ${data.filename}`;
+      analysisStatusBadge.textContent = "Текст готов";
+    } catch (error) {
+      documentAnalysisBox.textContent = "Ошибка загрузки файла.";
+      analysisStatusBadge.textContent = "Ошибка";
+    } finally {
+      extractAnalysisFileButton.disabled = false;
+      extractAnalysisFileButton.textContent = "Извлечь текст из файла";
+    }
+  });
 }
 
 function renderAnalysisSources(sources) {
@@ -35,7 +81,7 @@ analyzeDocumentButton.addEventListener("click", async () => {
   const documentText = documentTextInput.value.trim();
 
   if (!documentText) {
-    documentAnalysisBox.textContent = "Вставьте текст документа для анализа.";
+    documentAnalysisBox.textContent = "Вставьте текст документа или загрузите файл.";
     analysisStatusBadge.textContent = "Нет данных";
     return;
   }

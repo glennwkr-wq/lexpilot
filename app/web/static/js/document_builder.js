@@ -2,9 +2,14 @@ const documentRequestInput = document.getElementById("documentRequest");
 const additionalDocumentDataInput = document.getElementById("additionalDocumentData");
 const builderClientIdInput = document.getElementById("builderClientId");
 const generateDocumentButton = document.getElementById("generateDocumentButton");
+const downloadDocumentButton = document.getElementById("downloadDocumentButton");
 const documentDraftBox = document.getElementById("documentDraftBox");
 const documentSourcesBox = document.getElementById("documentSourcesBox");
 const documentStatusBadge = document.getElementById("documentStatusBadge");
+
+let currentDocumentDraft = "";
+let currentDocumentTitle = "Юридический документ";
+let currentClientName = "";
 
 function setDocumentLoading(isLoading) {
   generateDocumentButton.disabled = isLoading;
@@ -46,6 +51,14 @@ generateDocumentButton.addEventListener("click", async () => {
     return;
   }
 
+  currentDocumentDraft = "";
+  currentDocumentTitle = "Юридический документ";
+  currentClientName = getSelectedClientName();
+
+  if (downloadDocumentButton) {
+    downloadDocumentButton.disabled = true;
+  }
+
   setDocumentLoading(true);
   documentDraftBox.textContent = "Идёт поиск по базе знаний и подготовка черновика...";
   documentSourcesBox.textContent = "Поиск материалов...";
@@ -70,9 +83,17 @@ generateDocumentButton.addEventListener("click", async () => {
       return;
     }
 
-    documentDraftBox.textContent = data.draft || "Документ не был сформирован.";
+    currentDocumentDraft = data.draft || "";
+    currentDocumentTitle = buildDocumentTitle(data);
+    currentClientName = data.client?.full_name || getSelectedClientName();
+
+    documentDraftBox.textContent = currentDocumentDraft || "Документ не был сформирован.";
     renderDocumentSources(data.sources);
     documentStatusBadge.textContent = "Черновик готов";
+
+    if (downloadDocumentButton) {
+      downloadDocumentButton.disabled = !currentDocumentDraft;
+    }
   } catch (error) {
     documentDraftBox.textContent = "Ошибка соединения с сервером.";
     documentSourcesBox.textContent = "";
@@ -81,6 +102,55 @@ generateDocumentButton.addEventListener("click", async () => {
     setDocumentLoading(false);
   }
 });
+
+if (downloadDocumentButton) {
+  downloadDocumentButton.addEventListener("click", async () => {
+    if (!currentDocumentDraft) {
+      documentStatusBadge.textContent = "Нет документа";
+      return;
+    }
+
+    downloadDocumentButton.disabled = true;
+    downloadDocumentButton.textContent = "Готовлю Word...";
+
+    try {
+      const response = await fetch("/api/document-builder/docx", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          content: currentDocumentDraft,
+          title: currentDocumentTitle,
+          client_name: currentClientName,
+        }),
+      });
+
+      if (!response.ok) {
+        documentStatusBadge.textContent = "Ошибка DOCX";
+        return;
+      }
+
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+
+      link.href = downloadUrl;
+      link.download = `${sanitizeFilename(currentDocumentTitle)}.docx`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+
+      window.URL.revokeObjectURL(downloadUrl);
+      documentStatusBadge.textContent = "Word скачан";
+    } catch (error) {
+      documentStatusBadge.textContent = "Ошибка скачивания";
+    } finally {
+      downloadDocumentButton.disabled = false;
+      downloadDocumentButton.textContent = "Скачать Word";
+    }
+  });
+}
 
 function buildCombinedRequest(requestText, additionalText) {
   if (!additionalText) {
@@ -97,4 +167,54 @@ ${additionalText}
 ЗАДАЧА:
 С учётом дополнительных данных повторно проверь обязательные данные и подготовь более полный черновик документа.
 `.trim();
+}
+
+function getSelectedClientName() {
+  if (!builderClientIdInput || !builderClientIdInput.value) {
+    return "";
+  }
+
+  const selectedOption = builderClientIdInput.options[builderClientIdInput.selectedIndex];
+
+  return selectedOption ? selectedOption.textContent.trim() : "";
+}
+
+function buildDocumentTitle(data) {
+  if (data.detected_family === "claim") {
+    return "Претензия";
+  }
+
+  if (data.detected_family === "lawsuit") {
+    return "Исковое заявление";
+  }
+
+  if (data.detected_family === "motion") {
+    return "Ходатайство";
+  }
+
+  if (data.detected_family === "response") {
+    return "Отзыв или возражения";
+  }
+
+  if (data.detected_family === "appeal") {
+    return "Апелляционная жалоба";
+  }
+
+  if (data.detected_family === "cassation") {
+    return "Кассационная жалоба";
+  }
+
+  if (data.detected_family === "complaint") {
+    return "Жалоба";
+  }
+
+  return "Юридический документ";
+}
+
+function sanitizeFilename(value) {
+  return value
+    .trim()
+    .replace(/[\\/:*?"<>|]+/g, "_")
+    .replace(/\s+/g, "_")
+    .slice(0, 80) || "document";
 }

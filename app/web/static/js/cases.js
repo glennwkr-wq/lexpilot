@@ -319,3 +319,62 @@ if (workspaceTypeFilter) {
 if (workspaceStatusFilter) {
   workspaceStatusFilter.addEventListener("change", applyWorkspaceFilters);
 }
+
+
+document.querySelectorAll(".case-document-upload-form").forEach((form) => {
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    const caseId = form.dataset.caseId;
+    const fileInput = form.querySelector("input[type='file']");
+    const status = form.querySelector(".case-document-status");
+    const submitButton = form.querySelector("button[type='submit']");
+    const file = fileInput?.files?.[0];
+
+    if (!caseId || !file) {
+      if (status) {
+        status.textContent = "Выберите файл.";
+      }
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    if (submitButton) {
+      submitButton.disabled = true;
+      submitButton.textContent = "Загружаю...";
+    }
+
+    if (status) {
+      status.textContent = "Файл загружается...";
+    }
+
+    try {
+      const response = await fetch(`/api/cases/${caseId}/documents`, {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || data.status !== "ok") {
+        if (status) {
+          status.textContent = data.message || "Ошибка загрузки файла.";
+        }
+        return;
+      }
+
+      window.location.reload();
+    } catch (error) {
+      if (status) {
+        status.textContent = "Ошибка соединения с сервером.";
+      }
+    } finally {
+      if (submitButton) {
+        submitButton.disabled = false;
+        submitButton.textContent = "Прикрепить файл";
+      }
+    }
+  });
+});

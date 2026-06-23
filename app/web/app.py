@@ -1,4 +1,4 @@
-from flask import Flask, render_template, jsonify, request
+from flask import Flask, render_template, jsonify, request, send_file
 from sqlalchemy import text
 from app.core.config import settings
 from app.services.knowledge.ingest import ingest_knowledge_base
@@ -10,6 +10,17 @@ from app.services.knowledge.search import search_knowledge, build_knowledge_cont
 from app.db.session import SessionLocal
 from app.providers.llm.openai import generate_legal_answer, analyze_legal_document
 from app.services.documents.builder import build_document_from_request
+from app.services.documents.export_docx import (
+    DOCX_MIME_TYPE,
+    build_legal_docx,
+    make_docx_filename,
+)
+from app.services.documents.file_storage import (
+    save_temp_file_and_extract,
+    save_case_file,
+    get_case_documents,
+    get_document_file,
+)
 from app.services.settings_store import get_lawyer_profile, save_lawyer_profile
 from app.services.workspace_store import (
     get_dashboard_workspace,
@@ -206,12 +217,18 @@ def create_app() -> Flask:
         tasks = get_all_tasks()
         clients = get_all_clients()
 
+        documents_by_case = {
+            case["id"]: get_case_documents(case["id"])
+            for case in cases
+        }
+
         return render_template(
             "cases.html",
             app_name=settings.APP_NAME,
             cases=cases,
             tasks=tasks,
             clients=clients,
+            documents_by_case=documents_by_case,
         )
 
     @app.get("/clients")
@@ -240,6 +257,35 @@ def create_app() -> Flask:
 
         try:
             document = add_manual_knowledge_document(data)
+        except ValueError as error:
+            return jsonify({
+                "status": "error",
+                "message": str(error),
+            }), 400
+
+        return jsonify({
+            "status": "ok",
+            "document": document,
+        })
+
+    @app.post("/api/knowledge/upload")
+    def api_upload_knowledge_file():
+        uploaded_file = request.files.get("file")
+        document_type = (request.form.get("document_type") or "").strip()
+        title = (request.form.get("title") or "").strip()
+        source_url = (request.form.get("source_url") or "").strip()
+        document_date = (request.form.get("document_date") or "").strip()
+
+        try:
+            extracted = save_temp_file_and_extract(uploaded_file)
+
+            document = add_manual_knowledge_document({
+                "document_type": document_type,
+                "title": title or extracted["original_filename"],
+                "source_url": source_url or extracted["original_filename"],
+                "document_date": document_date,
+                "content": extracted["text"],
+            })
         except ValueError as error:
             return jsonify({
                 "status": "error",
@@ -331,6 +377,33 @@ def create_app() -> Flask:
 
         return jsonify(result)
 
+    @app.post("/api/document-builder/docx")
+    def api_document_builder_docx():
+        data = request.get_json(silent=True) or {}
+
+        content = (data.get("content") or "").strip()
+        title = (data.get("title") or "Юридический документ").strip()
+        client_name = (data.get("client_name") or "").strip()
+
+        if not content:
+            return jsonify({
+                "status": "error",
+                "message": "Нет текста документа для скачивания.",
+            }), 400
+
+        file_stream = build_legal_docx(
+            content=content,
+            title=title,
+            client_name=client_name,
+        )
+
+        return send_file(
+            file_stream,
+            mimetype=DOCX_MIME_TYPE,
+            as_attachment=True,
+            download_name=make_docx_filename(title),
+        )
+
     @app.post("/api/document-analysis")
     def api_document_analysis():
         data = request.get_json(silent=True) or {}
@@ -361,6 +434,24 @@ def create_app() -> Flask:
                 }
                 for item in knowledge_results
             ],
+        })
+
+    @app.post("/api/document-analysis/upload")
+    def api_document_analysis_upload():
+        uploaded_file = request.files.get("file")
+
+        try:
+            result = save_temp_file_and_extract(uploaded_file)
+        except ValueError as error:
+            return jsonify({
+                "status": "error",
+                "message": str(error),
+            }), 400
+
+        return jsonify({
+            "status": "ok",
+            "filename": result["original_filename"],
+            "text": result["text"],
         })
 
     @app.post("/api/settings/profile")
@@ -422,6 +513,45 @@ def create_app() -> Flask:
         return jsonify({
             "status": "ok",
         })
+
+    @app.post("/api/cases/<int:case_id>/documents")
+    def api_upload_case_document(case_id: int):
+        uploaded_file = request.files.get("file")
+
+        try:
+            document = save_case_file(case_id, uploaded_file)
+        except ValueError as error:
+            return jsonify({
+                "status": "error",
+                "message": str(error),
+            }), 400
+
+        return jsonify({
+            "status": "ok",
+            "document": {
+                "id": document["id"],
+                "original_filename": document["original_filename"],
+                "document_type": document["document_type"],
+                "created_at": str(document["created_at"]),
+            },
+        })
+
+
+    @app.get("/api/documents/<int:document_id>/download")
+    def api_download_case_document(document_id: int):
+        try:
+            document = get_document_file(document_id)
+        except ValueError as error:
+            return jsonify({
+                "status": "error",
+                "message": str(error),
+            }), 404
+
+        return send_file(
+            document["path"],
+            as_attachment=True,
+            download_name=document["original_filename"],
+        )
 
     @app.post("/api/clients")
     def api_create_client():

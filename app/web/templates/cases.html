@@ -298,9 +298,35 @@
         <details class="compact-details">
           <summary>Действия</summary>
 
+          <div class="case-documents-block">
+            <h4>Документы дела</h4>
+
+            <form class="case-document-upload-form" data-case-id="{{ case.id }}">
+              <input type="file" name="file" accept=".pdf,.docx,.txt">
+              <button type="submit">Прикрепить файл</button>
+              <small class="case-document-status"></small>
+            </form>
+
+            {% set case_documents = documents_by_case.get(case.id, []) %}
+
+            {% if case_documents %}
+              <div class="case-documents-list">
+                {% for document in case_documents %}
+                  <a href="/api/documents/{{ document.id }}/download">
+                    {{ document.original_filename }}
+                  </a>
+                {% endfor %}
+              </div>
+            {% else %}
+              <p class="hint">Файлы к делу пока не прикреплены.</p>
+            {% endif %}
+          </div>
+
           <div class="case-actions">
-            <button class="edit-task-button" type="button">Редактировать</button>
-            <button class="delete-task-button secondary" type="button">Удалить</button>
+            <a href="/document-builder">Подготовить документ</a>
+            <a href="/ask">Задать вопрос</a>
+            <button class="edit-case-button" type="button">Редактировать</button>
+            <button class="delete-case-button secondary" type="button">Удалить</button>
           </div>
         </details>
       </article>

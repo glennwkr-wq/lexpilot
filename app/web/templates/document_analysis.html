@@ -12,10 +12,27 @@
 
 <section class="ask-layout">
   <div class="ask-panel">
+    <label for="analysisFileInput">Загрузить файл</label>
+    <input
+      id="analysisFileInput"
+      class="file-input"
+      type="file"
+      accept=".pdf,.docx,.txt"
+    >
+
+    <button id="extractAnalysisFileButton" class="secondary" type="button">
+      Извлечь текст из файла
+    </button>
+
+    <p class="hint">
+      Поддерживаются PDF, DOCX и TXT. Если PDF является сканом без текстового слоя,
+      извлечь текст не получится.
+    </p>
+
     <label for="documentText">Текст документа</label>
     <textarea
       id="documentText"
-      placeholder="Вставьте сюда текст документа для анализа..."
+      placeholder="Вставьте сюда текст документа или загрузите файл выше..."
     ></textarea>
 
     <button id="analyzeDocumentButton" type="button">Проанализировать документ</button>

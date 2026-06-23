@@ -105,6 +105,63 @@
         Не добавляйте непроверенные нормы, неподтверждённую практику и персональные данные.
       </p>
     </form>
+    <div class="knowledge-file-upload-panel">
+      <h3>Загрузить файл в базу знаний</h3>
+      <p class="hint">
+        Поддерживаются PDF, DOCX и TXT. Текст файла будет извлечён и добавлен в базу знаний.
+      </p>
+
+      <form id="knowledgeFileForm" class="knowledge-form">
+        <div class="form-grid">
+          <div>
+            <label for="knowledgeFileType">Тип материала</label>
+            <select id="knowledgeFileType" name="document_type" required>
+              <option value="">Выберите тип</option>
+              {% for value, label in knowledge_types.items() %}
+                <option value="{{ value }}">{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div>
+            <label for="knowledgeFileDate">Дата документа</label>
+            <input id="knowledgeFileDate" name="document_date" type="date">
+          </div>
+        </div>
+
+        <label for="knowledgeFileTitle">Название</label>
+        <input
+          id="knowledgeFileTitle"
+          name="title"
+          type="text"
+          placeholder="Если не заполнить, будет использовано имя файла"
+        >
+
+        <label for="knowledgeFileSource">Источник</label>
+        <input
+          id="knowledgeFileSource"
+          name="source_url"
+          type="text"
+          placeholder="Ссылка, реквизиты или имя источника"
+        >
+
+        <label for="knowledgeFileInput">Файл</label>
+        <input
+          id="knowledgeFileInput"
+          name="file"
+          class="file-input"
+          type="file"
+          accept=".pdf,.docx,.txt"
+          required
+        >
+
+        <div class="form-actions">
+          <button type="submit">Загрузить файл в базу</button>
+        </div>
+
+        <p class="hint" id="knowledgeFileStatus"></p>
+      </form>
+    </div>
   </section>
 
   <aside class="knowledge-side-panel">

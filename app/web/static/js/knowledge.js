@@ -164,3 +164,59 @@ if (knowledgeShowMoreButton) {
 }
 
 applyKnowledgeFilters();
+
+
+const knowledgeFileForm = document.getElementById("knowledgeFileForm");
+const knowledgeFileStatus = document.getElementById("knowledgeFileStatus");
+
+if (knowledgeFileForm) {
+  knowledgeFileForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    const submitButton = knowledgeFileForm.querySelector("button[type='submit']");
+    const formData = new FormData(knowledgeFileForm);
+
+    if (submitButton) {
+      submitButton.disabled = true;
+      submitButton.textContent = "Загружаю...";
+    }
+
+    if (knowledgeFileStatus) {
+      knowledgeFileStatus.textContent = "Файл загружается и обрабатывается...";
+      knowledgeFileStatus.classList.remove("error-text");
+      knowledgeFileStatus.classList.add("success-text");
+    }
+
+    try {
+      const response = await fetch("/api/knowledge/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || result.status !== "ok") {
+        throw new Error(result.message || "Не удалось загрузить файл.");
+      }
+
+      if (knowledgeFileStatus) {
+        knowledgeFileStatus.textContent = `Файл добавлен в базу. Создано фрагментов: ${result.document.chunks_count}.`;
+      }
+
+      setTimeout(() => {
+        window.location.reload();
+      }, 900);
+    } catch (error) {
+      if (knowledgeFileStatus) {
+        knowledgeFileStatus.textContent = error.message;
+        knowledgeFileStatus.classList.add("error-text");
+        knowledgeFileStatus.classList.remove("success-text");
+      }
+    } finally {
+      if (submitButton) {
+        submitButton.disabled = false;
+        submitButton.textContent = "Загрузить файл в базу";
+      }
+    }
+  });
+}
