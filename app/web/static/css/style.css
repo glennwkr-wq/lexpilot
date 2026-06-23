@@ -1390,3 +1390,16 @@ button.secondary {
     flex-direction: column;
   }
 }
+
+.settings-single-layout {
+  max-width: 1180px;
+  margin-top: 24px;
+}
+
+.settings-main-panel {
+  max-width: 760px;
+}
+
+.settings-main-panel h2 {
+  margin-top: 0;
+}

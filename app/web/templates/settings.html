@@ -2,17 +2,17 @@
 
 {% block content %}
 <section class="page-header">
-  <p class="eyebrow">Settings</p>
-  <h1>Настройки профиля</h1>
+  <p class="eyebrow">Настройки</p>
+  <h1>Профиль юриста</h1>
   <p>
-    Данные юриста сохраняются в базе и будут использоваться для автоподстановки
-    в документы: претензии, иски, жалобы и другие черновики.
+    Здесь хранятся базовые данные рабочего профиля LexPilot. Эти сведения нужны
+    для идентификации владельца кабинета и дальнейших настроек сервиса.
   </p>
 </section>
 
-<section class="settings-layout">
-  <form id="lawyerProfileForm" class="settings-panel">
-    <h2>Профиль юриста</h2>
+<section class="settings-single-layout">
+  <form id="lawyerProfileForm" class="settings-panel settings-main-panel">
+    <h2>Данные профиля</h2>
 
     <label>ФИО / наименование</label>
     <input name="full_name" value="{{ profile.full_name }}" placeholder="Иванов Иван Иванович">
@@ -21,7 +21,7 @@
     <input name="professional_status" value="{{ profile.professional_status }}" placeholder="Адвокат / юрист / представитель">
 
     <label>Адрес</label>
-    <textarea name="address" placeholder="Адрес для документов">{{ profile.address }}</textarea>
+    <textarea name="address" placeholder="Адрес рабочего профиля">{{ profile.address }}</textarea>
 
     <label>Телефон</label>
     <input name="phone" value="{{ profile.phone }}" placeholder="+7 ...">
@@ -35,28 +35,15 @@
     <label>ОГРН / ОГРНИП</label>
     <input name="ogrn" value="{{ profile.ogrn }}" placeholder="ОГРН или ОГРНИП">
 
-    <label>Подпись для документов</label>
+    <label>Краткая подпись</label>
     <input name="signature" value="{{ profile.signature }}" placeholder="И.И. Иванов">
 
-    <button type="submit">Сохранить профиль</button>
-    <p id="settingsStatus" class="hint">Изменения сохраняются в Neon PostgreSQL.</p>
-  </form>
+    <div class="form-actions">
+      <button type="submit">Сохранить профиль</button>
+    </div>
 
-  <aside class="settings-panel">
-    <h2>Как это будет использоваться</h2>
-    <div class="settings-note">
-      <strong>Автоподстановка</strong>
-      <p>LexPilot сможет подставлять эти данные в шапку документов и подпись.</p>
-    </div>
-    <div class="settings-note">
-      <strong>Безопасность</strong>
-      <p>Пока профиль один. Авторизацию добавим следующим этапом.</p>
-    </div>
-    <div class="settings-note">
-      <strong>Документы</strong>
-      <p>Профиль будет связан с генератором документов после следующей доработки builder.</p>
-    </div>
-  </aside>
+    <p id="settingsStatus" class="hint">Заполните или обновите данные профиля.</p>
+  </form>
 </section>
 
 <script src="{{ url_for('static', filename='js/settings.js') }}"></script>
