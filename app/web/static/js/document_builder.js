@@ -1,5 +1,6 @@
 const documentRequestInput = document.getElementById("documentRequest");
 const additionalDocumentDataInput = document.getElementById("additionalDocumentData");
+const builderClientIdInput = document.getElementById("builderClientId");
 const generateDocumentButton = document.getElementById("generateDocumentButton");
 const documentDraftBox = document.getElementById("documentDraftBox");
 const documentSourcesBox = document.getElementById("documentSourcesBox");
@@ -57,6 +58,7 @@ generateDocumentButton.addEventListener("click", async () => {
       },
       body: JSON.stringify({
         request: buildCombinedRequest(requestText, additionalText),
+        client_id: builderClientIdInput ? builderClientIdInput.value : "",
       }),
     });
 

@@ -7,7 +7,7 @@ const caseFormStatus = document.getElementById("caseFormStatus");
 const caseIdInput = document.getElementById("caseId");
 const caseTitleInput = document.getElementById("caseTitle");
 const caseCategoryInput = document.getElementById("caseCategory");
-const caseClientInput = document.getElementById("caseClient");
+const caseClientIdInput = document.getElementById("caseClientId");
 const caseOpponentInput = document.getElementById("caseOpponent");
 const caseStatusInput = document.getElementById("caseStatus");
 const caseDeadlineInput = document.getElementById("caseDeadline");
@@ -30,7 +30,7 @@ function closeCaseEditor() {
 function fillCaseForm(card) {
   caseIdInput.value = card.dataset.caseId || "";
   caseTitleInput.value = card.dataset.title || "";
-  caseClientInput.value = card.dataset.clientName || "";
+  caseClientIdInput.value = card.dataset.clientId || "";
   caseOpponentInput.value = card.dataset.opponentName || "";
   caseCategoryInput.value = card.dataset.category || "";
   caseStatusInput.value = card.dataset.status || "new";
@@ -42,7 +42,7 @@ function fillCaseForm(card) {
 function getCasePayload() {
   return {
     title: caseTitleInput.value.trim(),
-    client_name: caseClientInput.value.trim(),
+    client_id: caseClientIdInput.value,
     opponent_name: caseOpponentInput.value.trim(),
     category: caseCategoryInput.value.trim(),
     status: caseStatusInput.value,

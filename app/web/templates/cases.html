@@ -60,19 +60,13 @@
       </div>
 
       <div>
-        <label for="caseClient">Клиент</label>
-        <input
-          id="caseClient"
-          name="client_name"
-          list="clientsDatalist"
-          placeholder="Начните вводить имя клиента"
-        >
-
-        <datalist id="clientsDatalist">
+        <label for="caseClientId">Клиент</label>
+        <select id="caseClientId" name="client_id">
+          <option value="">Без выбранного клиента</option>
           {% for client in clients %}
-            <option value="{{ client.full_name }}">
+            <option value="{{ client.id }}">{{ client.full_name }}</option>
           {% endfor %}
-        </datalist>
+        </select>
       </div>
 
       <div>
@@ -121,6 +115,7 @@
         data-record-type="case"
         data-case-id="{{ case.id }}"
         data-title="{{ case.title }}"
+        data-client-id="{{ case.client_id or '' }}"
         data-client-name="{{ case.client_name or '' }}"
         data-opponent-name="{{ case.opponent_name or '' }}"
         data-category="{{ case.category or '' }}"

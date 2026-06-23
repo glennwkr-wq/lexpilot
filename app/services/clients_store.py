@@ -198,3 +198,77 @@ def _build_client_payload(data: dict) -> dict:
         "representative": (data.get("representative") or "").strip(),
         "notes": (data.get("notes") or "").strip(),
     }
+
+
+
+def get_client_by_id(client_id: int | str | None) -> dict | None:
+    ensure_clients_table()
+
+    if not client_id:
+        return None
+
+    try:
+        parsed_client_id = int(client_id)
+    except (TypeError, ValueError):
+        return None
+
+    with SessionLocal() as session:
+        row = session.execute(text("""
+            SELECT
+                id,
+                client_type,
+                full_name,
+                short_name,
+                phone,
+                email,
+                address,
+                inn,
+                ogrn,
+                passport_details,
+                representative,
+                notes,
+                created_at,
+                updated_at
+            FROM clients
+            WHERE id = :id
+            LIMIT 1
+        """), {"id": parsed_client_id}).mappings().fetchone()
+
+    return dict(row) if row else None
+
+
+def build_client_context(client_data: dict | None) -> str:
+    if not client_data:
+        return ""
+
+    client_type_label = _get_client_type_label(client_data.get("client_type"))
+
+    lines = [
+        "ДАННЫЕ ВЫБРАННОГО КЛИЕНТА:",
+        f"Тип клиента: {client_type_label}",
+        f"ФИО / наименование: {client_data.get('full_name') or ''}",
+        f"Краткое имя: {client_data.get('short_name') or ''}",
+        f"Телефон: {client_data.get('phone') or ''}",
+        f"Email: {client_data.get('email') or ''}",
+        f"Адрес: {client_data.get('address') or ''}",
+        f"ИНН: {client_data.get('inn') or ''}",
+        f"ОГРН / ОГРНИП: {client_data.get('ogrn') or ''}",
+        f"Паспортные данные / сведения о документе: {client_data.get('passport_details') or ''}",
+        f"Представитель: {client_data.get('representative') or ''}",
+        f"Комментарий юриста: {client_data.get('notes') or ''}",
+    ]
+
+    return "\n".join(lines).strip()
+
+
+def _get_client_type_label(client_type: str | None) -> str:
+    if client_type == "person":
+        return "Физическое лицо"
+
+    if client_type == "individual_entrepreneur":
+        return "Индивидуальный предприниматель"
+
+    if client_type == "company":
+        return "Организация"
+
+    return client_type or "Не указан"

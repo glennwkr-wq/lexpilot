@@ -54,7 +54,10 @@ def detect_document_family(user_request: str) -> dict:
     }
 
 
-def build_document_from_request(user_request: str) -> dict:
+def build_document_from_request(
+    user_request: str,
+    client_context: str = "",
+) -> dict:
     user_request = user_request.strip()
 
     if not user_request:
@@ -78,6 +81,7 @@ def build_document_from_request(user_request: str) -> dict:
         knowledge_context=knowledge_context,
         detected_family=family,
         detected_document_type=document_type,
+        client_context=client_context,
     )
 
     return {

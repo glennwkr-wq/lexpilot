@@ -1,9 +1,11 @@
 from sqlalchemy import text
 
 from app.db.session import SessionLocal
-
+from app.services.clients_store import ensure_clients_table
 
 def ensure_workspace_tables() -> None:
+    ensure_clients_table()
+
     with SessionLocal() as session:
         session.execute(text("""
             CREATE TABLE IF NOT EXISTS cases (
@@ -29,6 +31,11 @@ def ensure_workspace_tables() -> None:
         session.execute(text("""
             ALTER TABLE cases
             ADD COLUMN IF NOT EXISTS deadline DATE
+        """))
+
+        session.execute(text("""
+            ALTER TABLE cases
+            ADD COLUMN IF NOT EXISTS client_id INTEGER
         """))
 
         session.execute(text("""
@@ -65,10 +72,20 @@ def get_dashboard_workspace() -> dict:
         """)).scalar_one()
 
         recent_cases = session.execute(text("""
-            SELECT id, title, client_name, opponent_name, category, status,
-                   description, next_action, deadline
-            FROM cases
-            ORDER BY updated_at DESC, id DESC
+            SELECT
+                c.id,
+                c.title,
+                c.client_id,
+                COALESCE(cl.full_name, c.client_name) AS client_name,
+                c.opponent_name,
+                c.category,
+                c.status,
+                c.description,
+                c.next_action,
+                c.deadline
+            FROM cases c
+            LEFT JOIN clients cl ON cl.id = c.client_id
+            ORDER BY c.updated_at DESC, c.id DESC
             LIMIT 3
         """)).mappings().fetchall()
 
@@ -100,14 +117,26 @@ def get_all_cases() -> list[dict]:
 
     with SessionLocal() as session:
         rows = session.execute(text("""
-            SELECT id, title, client_name, opponent_name, category, status,
-                   description, next_action, deadline, created_at, updated_at
-            FROM cases
-            ORDER BY updated_at DESC, id DESC
+            SELECT
+                c.id,
+                c.title,
+                c.client_id,
+                COALESCE(cl.full_name, c.client_name) AS client_name,
+                c.client_name AS legacy_client_name,
+                c.opponent_name,
+                c.category,
+                c.status,
+                c.description,
+                c.next_action,
+                c.deadline,
+                c.created_at,
+                c.updated_at
+            FROM cases c
+            LEFT JOIN clients cl ON cl.id = c.client_id
+            ORDER BY c.updated_at DESC, c.id DESC
         """)).mappings().fetchall()
 
     return [dict(row) for row in rows]
-
 
 def create_case(data: dict) -> dict:
     ensure_workspace_tables()
@@ -117,35 +146,44 @@ def create_case(data: dict) -> dict:
     if not title:
         raise ValueError("Название дела обязательно.")
 
-    payload = {
-        "title": title,
-        "client_name": (data.get("client_name") or "").strip(),
-        "opponent_name": (data.get("opponent_name") or "").strip(),
-        "category": (data.get("category") or "").strip(),
-        "status": (data.get("status") or "new").strip(),
-        "description": (data.get("description") or "").strip(),
-        "next_action": (data.get("next_action") or "").strip(),
-        "deadline": (data.get("deadline") or "").strip() or None,
-    }
+    client_id = _parse_optional_int(data.get("client_id"))
+    client_name = ""
 
     with SessionLocal() as session:
+        if client_id:
+            client_name = _get_client_name_by_id(session, client_id)
+
+            if not client_name:
+                raise ValueError("Выбранный клиент не найден.")
+
+        payload = {
+            "title": title,
+            "client_id": client_id,
+            "client_name": client_name,
+            "opponent_name": (data.get("opponent_name") or "").strip(),
+            "category": (data.get("category") or "").strip(),
+            "status": (data.get("status") or "new").strip(),
+            "description": (data.get("description") or "").strip(),
+            "next_action": (data.get("next_action") or "").strip(),
+            "deadline": (data.get("deadline") or "").strip() or None,
+        }
+
         row = session.execute(text("""
             INSERT INTO cases (
-                title, client_name, opponent_name, category, status,
+                title, client_id, client_name, opponent_name, category, status,
                 description, next_action, deadline, updated_at
             )
             VALUES (
-                :title, :client_name, :opponent_name, :category, :status,
+                :title, :client_id, :client_name, :opponent_name, :category, :status,
                 :description, :next_action, :deadline, NOW()
             )
-            RETURNING id, title, client_name, opponent_name, category, status,
+            RETURNING id, title, client_id, client_name, opponent_name, category, status,
                       description, next_action, deadline, created_at, updated_at
         """), payload).mappings().fetchone()
 
         session.commit()
 
     return dict(row)
-
 
 def update_case(case_id: int, data: dict) -> dict:
     ensure_workspace_tables()
@@ -155,23 +193,34 @@ def update_case(case_id: int, data: dict) -> dict:
     if not title:
         raise ValueError("Название дела обязательно.")
 
-    payload = {
-        "id": case_id,
-        "title": title,
-        "client_name": (data.get("client_name") or "").strip(),
-        "opponent_name": (data.get("opponent_name") or "").strip(),
-        "category": (data.get("category") or "").strip(),
-        "status": (data.get("status") or "new").strip(),
-        "description": (data.get("description") or "").strip(),
-        "next_action": (data.get("next_action") or "").strip(),
-        "deadline": (data.get("deadline") or "").strip() or None,
-    }
+    client_id = _parse_optional_int(data.get("client_id"))
+    client_name = ""
 
     with SessionLocal() as session:
+        if client_id:
+            client_name = _get_client_name_by_id(session, client_id)
+
+            if not client_name:
+                raise ValueError("Выбранный клиент не найден.")
+
+        payload = {
+            "id": case_id,
+            "title": title,
+            "client_id": client_id,
+            "client_name": client_name,
+            "opponent_name": (data.get("opponent_name") or "").strip(),
+            "category": (data.get("category") or "").strip(),
+            "status": (data.get("status") or "new").strip(),
+            "description": (data.get("description") or "").strip(),
+            "next_action": (data.get("next_action") or "").strip(),
+            "deadline": (data.get("deadline") or "").strip() or None,
+        }
+
         row = session.execute(text("""
             UPDATE cases
             SET
                 title = :title,
+                client_id = :client_id,
                 client_name = :client_name,
                 opponent_name = :opponent_name,
                 category = :category,
@@ -181,7 +230,7 @@ def update_case(case_id: int, data: dict) -> dict:
                 deadline = :deadline,
                 updated_at = NOW()
             WHERE id = :id
-            RETURNING id, title, client_name, opponent_name, category, status,
+            RETURNING id, title, client_id, client_name, opponent_name, category, status,
                       description, next_action, deadline, created_at, updated_at
         """), payload).mappings().fetchone()
 
@@ -191,7 +240,6 @@ def update_case(case_id: int, data: dict) -> dict:
         raise ValueError("Дело не найдено.")
 
     return dict(row)
-
 
 def delete_case(case_id: int) -> None:
     ensure_workspace_tables()
@@ -325,3 +373,28 @@ def delete_task(task_id: int) -> None:
 
     if result.rowcount == 0:
         raise ValueError("Задача не найдена.")
+
+
+
+def _parse_optional_int(value) -> int | None:
+    if not value:
+        return None
+
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _get_client_name_by_id(session, client_id: int) -> str:
+    row = session.execute(text("""
+        SELECT full_name
+        FROM clients
+        WHERE id = :id
+        LIMIT 1
+    """), {"id": client_id}).fetchone()
+
+    if not row:
+        return ""
+
+    return row[0] or ""

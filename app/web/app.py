@@ -24,6 +24,8 @@ from app.services.workspace_store import (
 )
 from app.services.clients_store import (
     get_all_clients,
+    get_client_by_id,
+    build_client_context,
     create_client,
     update_client,
     delete_client,
@@ -186,7 +188,13 @@ def create_app() -> Flask:
 
     @app.get("/document-builder")
     def document_builder_page():
-        return render_template("document_builder.html", app_name=settings.APP_NAME)
+        clients = get_all_clients()
+
+        return render_template(
+            "document_builder.html",
+            app_name=settings.APP_NAME,
+            clients=clients,
+        )
 
     @app.get("/document-analysis")
     def document_analysis_page():
@@ -299,6 +307,7 @@ def create_app() -> Flask:
     def api_document_builder():
         data = request.get_json(silent=True) or {}
         user_request = (data.get("request") or "").strip()
+        client_id = data.get("client_id") or None
 
         if not user_request:
             return jsonify({
@@ -306,7 +315,20 @@ def create_app() -> Flask:
                 "message": "Request is required",
             }), 400
 
-        result = build_document_from_request(user_request)
+        selected_client = get_client_by_id(client_id)
+        client_context = build_client_context(selected_client)
+
+        result = build_document_from_request(
+            user_request=user_request,
+            client_context=client_context,
+        )
+
+        if selected_client:
+            result["client"] = {
+                "id": selected_client["id"],
+                "full_name": selected_client["full_name"],
+            }
+
         return jsonify(result)
 
     @app.post("/api/document-analysis")

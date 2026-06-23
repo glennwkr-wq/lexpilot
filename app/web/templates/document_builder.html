@@ -12,7 +12,20 @@
 
 <section class="ask-layout">
   <div class="ask-panel">
-    <label for="documentRequest">Исходные данные</label>
+    <label for="builderClientId">Клиент</label>
+    <select id="builderClientId" class="builder-client-select">
+      <option value="">Без выбранного клиента</option>
+      {% for client in clients %}
+        <option value="{{ client.id }}">{{ client.full_name }}</option>
+      {% endfor %}
+    </select>
+
+    <p class="hint">
+      Если выбрать клиента, LexPilot учтёт его реквизиты при подготовке черновика.
+      Если документ готовится не от имени клиента, оставьте поле пустым.
+    </p>
+
+    <label for="documentRequest">Исходные данные</label>    
     <textarea
       id="documentRequest"
       placeholder="Например: подготовь претензию о взыскании задолженности по договору поставки. Поставщик ООО Ромашка, покупатель ООО Вектор, долг 450 000 руб., товар передан по УПД..."
