@@ -9,3 +9,6 @@ bcrypt
 PyJWT
 gunicorn
 psycopg[binary]
+pyarrow
+huggingface_hub
+tqdm

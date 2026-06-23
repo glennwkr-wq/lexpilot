@@ -7,6 +7,10 @@ from app.services.knowledge.manual import (
     add_manual_knowledge_document,
 )
 from app.services.knowledge.search import search_knowledge, build_knowledge_context
+from app.services.federal_law.search import (
+    search_federal_law,
+    build_federal_law_context,
+)
 from app.db.session import SessionLocal
 from app.providers.llm.openai import generate_legal_answer, analyze_legal_document
 from app.services.documents.builder import build_document_from_request
@@ -369,8 +373,15 @@ def create_app() -> Flask:
                 "message": "Question is required",
             }), 400
 
-        knowledge_results = search_knowledge(question, limit=5)
-        knowledge_context = build_knowledge_context(knowledge_results)
+        knowledge_results = search_knowledge(question, limit=4)
+        federal_law_results = search_federal_law(question, limit=8)
+
+        local_context = build_knowledge_context(knowledge_results)
+        federal_context = build_federal_law_context(federal_law_results)
+
+        knowledge_context = "\n\n".join(
+            block for block in [local_context, federal_context] if block
+        )
 
         answer = generate_legal_answer(
             user_question=question,
@@ -386,8 +397,17 @@ def create_app() -> Flask:
                     "title": item["title"],
                     "document_type": item["document_type"],
                     "source_url": item["source_url"],
+                    "source_group": "local_knowledge",
                 }
                 for item in knowledge_results
+            ] + [
+                {
+                    "title": item["title"],
+                    "document_type": item["document_type"],
+                    "source_url": item["source_url"],
+                    "source_group": "federal_law",
+                }
+                for item in federal_law_results
             ],
         })
 
@@ -396,7 +416,7 @@ def create_app() -> Flask:
         data = request.get_json(silent=True) or {}
         user_request = (data.get("request") or "").strip()
         client_id = data.get("client_id") or None
-        client_id = data.get("client_id") or None
+        case_id = data.get("case_id") or None
 
         if not user_request:
             return jsonify({
