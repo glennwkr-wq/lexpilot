@@ -2,78 +2,216 @@
 
 {% block content %}
 <section class="page-header">
-  <p class="eyebrow">Knowledge Base</p>
+  <p class="eyebrow">Управление знаниями</p>
   <h1>База знаний</h1>
   <p>
-    LexPilot использует собственную базу знаний: шаблоны документов, intake forms,
-    чек-листы, правила юридического стиля и другие материалы. Это отличает систему
-    от обычного чата с GPT.
+    Здесь хранятся материалы, на которые LexPilot опирается при консультациях,
+    анализе документов и подготовке черновиков. Добавляйте только проверенные
+    источники: законы, судебную практику, разъяснения, шаблоны и обезличенные примеры.
   </p>
 </section>
 
 <section class="dashboard-grid stats-grid">
   <article class="metric-card">
-    <span>Документы</span>
+    <span>Материалы базы</span>
     <strong>{{ stats.total_documents }}</strong>
-    <p>Материалы, загруженные в Neon.</p>
+    <p>Все материалы, доступные LexPilot.</p>
   </article>
 
   <article class="metric-card">
-    <span>Фрагменты</span>
+    <span>Фрагменты поиска</span>
     <strong>{{ stats.total_chunks }}</strong>
-    <p>Чанки, доступные для поиска и retrieval.</p>
+    <p>Текстовые части, по которым система подбирает источники.</p>
   </article>
 
   <article class="metric-card">
-    <span>Шаблоны MVP</span>
-    <strong>7</strong>
-    <p>Базовые шаблоны документов.</p>
+    <span>Шаблоны документов</span>
+    <strong>{{ stats.templates_count }}</strong>
+    <p>Материалы для подготовки юридических документов.</p>
   </article>
 
   <article class="metric-card">
-    <span>Intake forms</span>
-    <strong>7</strong>
-    <p>Карты обязательных данных.</p>
+    <span>Карты данных</span>
+    <strong>{{ stats.intake_forms_count }}</strong>
+    <p>Списки сведений, которые нужно собрать перед подготовкой документа.</p>
   </article>
 </section>
 
-<section class="knowledge-page-layout">
-  <div class="dashboard-panel">
+<section class="knowledge-workspace">
+  <section class="knowledge-add-panel">
     <div class="panel-header">
       <div>
-        <p class="eyebrow">Категории</p>
-        <h2>Структура базы</h2>
+        <p class="eyebrow">Пополнение базы</p>
+        <h2>Добавить материал</h2>
       </div>
-      <span class="status-pill success">Активна</span>
+      <span class="status-pill">Ручное добавление</span>
     </div>
 
-    <div class="knowledge-category-list">
-      {% for category in stats.categories %}
+    <p class="knowledge-note">
+      Материал будет сохранён в базу данных и сразу разбит на фрагменты поиска.
+      После сохранения LexPilot сможет использовать его в консультациях, анализе
+      документов и генерации черновиков.
+    </p>
+
+    <form id="knowledgeForm" class="knowledge-form">
+      <div class="form-grid">
         <div>
-          <strong>{{ category.document_type }}</strong>
-          <span>{{ category.count }} материалов</span>
+          <label for="knowledgeType">Тип материала</label>
+          <select id="knowledgeType" name="document_type" required>
+            <option value="">Выберите тип</option>
+            {% for value, label in knowledge_types.items() %}
+              <option value="{{ value }}">{{ label }}</option>
+            {% endfor %}
+          </select>
         </div>
-      {% endfor %}
-    </div>
-  </div>
 
-  <div class="dashboard-panel">
-    <div class="panel-header">
-      <div>
-        <p class="eyebrow">Последние материалы</p>
-        <h2>Загруженные документы</h2>
+        <div>
+          <label for="knowledgeDate">Дата документа</label>
+          <input id="knowledgeDate" name="document_date" type="date">
+        </div>
+      </div>
+
+      <label for="knowledgeTitle">Название</label>
+      <input
+        id="knowledgeTitle"
+        name="title"
+        type="text"
+        required
+        placeholder="Например: Постановление Пленума ВС РФ №..."
+      >
+
+      <label for="knowledgeSource">Источник</label>
+      <input
+        id="knowledgeSource"
+        name="source_url"
+        type="text"
+        placeholder="Ссылка, реквизиты документа или пометка об источнике"
+      >
+
+      <label for="knowledgeContent">Текст материала</label>
+      <textarea
+        id="knowledgeContent"
+        name="content"
+        required
+        placeholder="Вставьте текст закона, разъяснения, судебного акта, шаблона, чек-листа или обезличенного примера..."
+      ></textarea>
+
+      <div class="form-actions">
+        <button type="submit">Сохранить в базу знаний</button>
+        <button type="button" class="secondary" id="knowledgeResetButton">Очистить</button>
+      </div>
+
+      <p class="hint" id="knowledgeFormStatus">
+        Не добавляйте непроверенные нормы, неподтверждённую практику и персональные данные.
+      </p>
+    </form>
+  </section>
+
+  <aside class="knowledge-side-panel">
+    <div class="dashboard-panel">
+      <div class="panel-header">
+        <div>
+          <p class="eyebrow">Состав базы</p>
+          <h2>Категории</h2>
+        </div>
+      </div>
+
+      {% if stats.categories %}
+        <div class="knowledge-category-list">
+          {% for category in stats.categories %}
+            <div>
+              <strong>{{ category.label }}</strong>
+              <span>{{ category.count }} материалов</span>
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="empty-state">
+          <h3>Категорий пока нет</h3>
+          <p>После загрузки материалов структура базы появится здесь.</p>
+        </div>
+      {% endif %}
+    </div>
+
+    <div class="dashboard-panel">
+      <div class="panel-header">
+        <div>
+          <p class="eyebrow">Источник</p>
+          <h2>Материалы</h2>
+        </div>
+      </div>
+
+      <div class="knowledge-source-summary">
+        <div>
+          <strong>{{ stats.system_documents }}</strong>
+          <span>Системные материалы LexPilot</span>
+        </div>
+        <div>
+          <strong>{{ stats.manual_documents }}</strong>
+          <span>Материалы, добавленные юристом</span>
+        </div>
       </div>
     </div>
-
-    <div class="knowledge-doc-list">
-      {% for document in stats.recent_documents %}
-        <div>
-          <strong>{{ document.title }}</strong>
-          <span>{{ document.document_type }}</span>
-          <small>{{ document.source_url }}</small>
-        </div>
-      {% endfor %}
-    </div>
-  </div>
+  </aside>
 </section>
+
+<section class="knowledge-materials-panel">
+  <div class="panel-header">
+    <div>
+      <p class="eyebrow">Материалы базы</p>
+      <h2>Загруженные документы</h2>
+    </div>
+    <span class="status-pill success">Доступны для поиска</span>
+  </div>
+
+  <div class="knowledge-search-row">
+    <input
+      id="knowledgeSearchInput"
+      type="search"
+      placeholder="Найти материал по названию, типу или источнику..."
+    >
+    <select id="knowledgeOriginFilter">
+      <option value="all">Все материалы</option>
+      <option value="manual">Материалы юриста</option>
+      <option value="system">Системные материалы</option>
+    </select>
+  </div>
+
+  {% if stats.documents %}
+    <div class="knowledge-doc-list" id="knowledgeDocumentsList">
+      {% for document in stats.documents %}
+        <article
+          class="knowledge-doc-item"
+          data-origin="{% if document.source == 'manual' %}manual{% else %}system{% endif %}"
+          data-search="{{ (document.title ~ ' ' ~ document.document_type_label ~ ' ' ~ (document.source_url or ''))|lower }}"
+        >
+          <div>
+            <strong>{{ document.title }}</strong>
+            <span>{{ document.document_type_label }}</span>
+            <small>{{ document.origin_label }}</small>
+          </div>
+
+          <div class="knowledge-doc-meta">
+            {% if document.document_date %}
+              <small>Дата документа: {{ document.document_date }}</small>
+            {% endif %}
+            <small>{{ document.source_url }}</small>
+          </div>
+        </article>
+      {% endfor %}
+    </div>
+
+    <div class="empty-state knowledge-hidden" id="knowledgeNoResults">
+      <h3>Ничего не найдено</h3>
+      <p>Попробуйте изменить поисковый запрос или фильтр материалов.</p>
+    </div>
+  {% else %}
+    <div class="empty-state">
+      <h3>Материалов пока нет</h3>
+      <p>Добавьте первый материал или выполните загрузку системной базы знаний.</p>
+    </div>
+  {% endif %}
+</section>
+
+<script src="{{ url_for('static', filename='js/knowledge.js') }}"></script>
 {% endblock %}

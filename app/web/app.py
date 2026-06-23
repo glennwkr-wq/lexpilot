@@ -2,6 +2,10 @@ from flask import Flask, render_template, jsonify, request
 from sqlalchemy import text
 from app.core.config import settings
 from app.services.knowledge.ingest import ingest_knowledge_base
+from app.services.knowledge.manual import (
+    ALLOWED_DOCUMENT_TYPES,
+    add_manual_knowledge_document,
+)
 from app.services.knowledge.search import search_knowledge, build_knowledge_context
 from app.db.session import SessionLocal
 from app.providers.llm.openai import generate_legal_answer, analyze_legal_document
@@ -19,6 +23,39 @@ from app.services.workspace_store import (
     delete_task,
 )
 
+KNOWLEDGE_TYPE_LABELS = {
+    "00_system_rules": "Системные правила",
+    "01_scenarios": "Сценарии работы",
+    "02_document_templates": "Шаблоны документов",
+    "03_checklists": "Чек-листы",
+    "04_risk_rules": "Правила оценки рисков",
+    "05_legal_style": "Правила юридического стиля",
+    "06_laws": "Законы и нормативные акты",
+    "07_plenum_vsrf": "Пленумы ВС РФ",
+    "08_reviews_vsrf": "Обзоры ВС РФ",
+    "09_court_practice": "Судебная практика",
+    "10_real_examples": "Обезличенные примеры",
+    "11_template_blueprints": "Форматы шаблонов",
+    "12_intake_forms": "Карты данных",
+    "13_anonymization_rules": "Правила обезличивания",
+    "law": "Закон / нормативный акт",
+    "plenum_vsrf": "Пленум ВС РФ",
+    "review_vsrf": "Обзор ВС РФ",
+    "court_practice": "Судебная практика",
+    "document_template": "Шаблон документа",
+    "checklist": "Чек-лист",
+    "real_example": "Обезличенный пример",
+    "legal_position": "Правовая позиция",
+}
+
+
+def get_knowledge_type_label(document_type: str | None) -> str:
+    if not document_type:
+        return "Без категории"
+
+    return KNOWLEDGE_TYPE_LABELS.get(document_type, document_type)
+
+
 def get_knowledge_stats() -> dict:
     with SessionLocal() as session:
         total_documents = session.execute(
@@ -29,7 +66,39 @@ def get_knowledge_stats() -> dict:
             text("SELECT COUNT(*) FROM knowledge_chunks")
         ).scalar_one()
 
-        categories = session.execute(
+        manual_documents = session.execute(
+            text("""
+                SELECT COUNT(*)
+                FROM legal_documents
+                WHERE source = 'manual'
+            """)
+        ).scalar_one()
+
+        system_documents = session.execute(
+            text("""
+                SELECT COUNT(*)
+                FROM legal_documents
+                WHERE source IS DISTINCT FROM 'manual'
+            """)
+        ).scalar_one()
+
+        templates_count = session.execute(
+            text("""
+                SELECT COUNT(*)
+                FROM legal_documents
+                WHERE document_type IN ('02_document_templates', 'document_template')
+            """)
+        ).scalar_one()
+
+        intake_forms_count = session.execute(
+            text("""
+                SELECT COUNT(*)
+                FROM legal_documents
+                WHERE document_type = '12_intake_forms'
+            """)
+        ).scalar_one()
+
+        categories_rows = session.execute(
             text("""
                 SELECT document_type, COUNT(*) AS count
                 FROM legal_documents
@@ -38,20 +107,55 @@ def get_knowledge_stats() -> dict:
             """)
         ).fetchall()
 
-        recent_documents = session.execute(
+        documents_rows = session.execute(
             text("""
-                SELECT title, document_type, source_url
+                SELECT
+                    id,
+                    title,
+                    document_type,
+                    source,
+                    source_url,
+                    document_date,
+                    created_at
                 FROM legal_documents
                 ORDER BY id DESC
-                LIMIT 12
+                LIMIT 80
             """)
         ).fetchall()
+
+    categories = [
+        {
+            "document_type": row.document_type,
+            "label": get_knowledge_type_label(row.document_type),
+            "count": row.count,
+        }
+        for row in categories_rows
+    ]
+
+    documents = [
+        {
+            "id": row.id,
+            "title": row.title,
+            "document_type": row.document_type,
+            "document_type_label": get_knowledge_type_label(row.document_type),
+            "source": row.source,
+            "source_url": row.source_url,
+            "document_date": row.document_date,
+            "created_at": row.created_at,
+            "origin_label": "Материал юриста" if row.source == "manual" else "Системный материал",
+        }
+        for row in documents_rows
+    ]
 
     return {
         "total_documents": total_documents,
         "total_chunks": total_chunks,
+        "manual_documents": manual_documents,
+        "system_documents": system_documents,
+        "templates_count": templates_count,
+        "intake_forms_count": intake_forms_count,
         "categories": categories,
-        "recent_documents": recent_documents,
+        "documents": documents,
     }
 
 def create_app() -> Flask:
@@ -101,7 +205,25 @@ def create_app() -> Flask:
             "knowledge.html",
             app_name=settings.APP_NAME,
             stats=stats,
+            knowledge_types=ALLOWED_DOCUMENT_TYPES,
         )
+
+    @app.post("/api/knowledge/manual")
+    def api_add_manual_knowledge():
+        data = request.get_json(silent=True) or {}
+
+        try:
+            document = add_manual_knowledge_document(data)
+        except ValueError as error:
+            return jsonify({
+                "status": "error",
+                "message": str(error),
+            }), 400
+
+        return jsonify({
+            "status": "ok",
+            "document": document,
+        })
 
     @app.get("/settings")
     def settings_page():
