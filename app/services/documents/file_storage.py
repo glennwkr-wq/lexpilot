@@ -175,7 +175,22 @@ def save_temp_file_and_extract(uploaded_file: FileStorage) -> dict:
 
     uploaded_file.save(file_path)
 
-    extracted_text = extract_text_from_file(file_path)
+    print("=" * 60)
+    print("DOCUMENT UPLOAD DEBUG")
+    print("ORIGINAL FILENAME:", original_filename)
+    print("EXTENSION:", extension)
+    print("SAVED PATH:", file_path)
+    print("FILE EXISTS:", file_path.exists())
+    print("FILE SIZE:", file_path.stat().st_size if file_path.exists() else 0)
+
+    try:
+        extracted_text = extract_text_from_file(file_path)
+        print("EXTRACTED TEXT LENGTH:", len(extracted_text))
+        print("EXTRACTED TEXT PREVIEW:")
+        print(extracted_text[:700])
+    except Exception as error:
+        print("EXTRACTION ERROR:", repr(error))
+        raise
 
     if not extracted_text.strip():
         raise ValueError(
