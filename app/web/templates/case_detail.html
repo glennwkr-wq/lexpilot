@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="page-header">
+  <p class="eyebrow">Карточка дела</p>
+  <h1>{{ case.title }}</h1>
+  <p>
+    Центр работы по делу: сведения, задачи, загруженные файлы, анализы и подготовленные черновики документов.
+  </p>
+</section>
+
+<section class="case-detail-layout">
+  <div class="case-detail-main">
+    <section class="dashboard-panel">
+      <div class="panel-header">
+        <div>
+          <p class="eyebrow">Сведения</p>
+          <h2>Основная информация</h2>
+        </div>
+        <span class="status-pill">
+          {% if case.status == "new" %}Новое
+          {% elif case.status == "pretrial" %}Досудебный порядок
+          {% elif case.status == "court" %}Суд
+          {% elif case.status == "appeal" %}Апелляция
+          {% elif case.status == "enforcement" %}Исполнение
+          {% elif case.status == "closed" %}Закрыто
+          {% else %}{{ case.status }}
+          {% endif %}
+        </span>
+      </div>
+
+      <div class="case-detail-grid">
+        <div>
+          <span>Клиент</span>
+          <strong>{{ case.client_name or "Не указан" }}</strong>
+        </div>
+
+        <div>
+          <span>Оппонент</span>
+          <strong>{{ case.opponent_name or "Не указан" }}</strong>
+        </div>
+
+        <div>
+          <span>Категория</span>
+          <strong>{{ case.category or "Без категории" }}</strong>
+        </div>
+
+        <div>
+          <span>Срок</span>
+          <strong>{{ case.deadline or "Не указан" }}</strong>
+        </div>
+      </div>
+
+      <div class="case-detail-description">
+        <span>Описание</span>
+        <p>{{ case.description or "Описание дела пока не заполнено." }}</p>
+      </div>
+
+      {% if case.next_action %}
+        <div class="case-next-action">
+          <span>Ближайшее действие</span>
+          <strong>{{ case.next_action }}</strong>
+        </div>
+      {% endif %}
+    </section>
+
+    <section class="dashboard-panel">
+      <div class="panel-header">
+        <div>
+          <p class="eyebrow">Файлы</p>
+          <h2>Документы дела</h2>
+        </div>
+      </div>
+
+      <form class="case-document-upload-form" data-case-id="{{ case.id }}">
+        <input type="file" name="file" accept=".pdf,.docx,.txt">
+        <button type="submit">Прикрепить файл</button>
+        <small class="case-document-status"></small>
+      </form>
+
+      {% if documents %}
+        <div class="case-documents-list detail-documents-list">
+          {% for document in documents %}
+            <a href="/api/documents/{{ document.id }}/download">
+              {{ document.original_filename }}
+            </a>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p class="hint">Файлы к делу пока не прикреплены.</p>
+      {% endif %}
+    </section>
+
+    <section class="dashboard-panel">
+      <div class="panel-header">
+        <div>
+          <p class="eyebrow">Черновики</p>
+          <h2>Сгенерированные документы и анализы</h2>
+        </div>
+      </div>
+
+      {% if generated_documents %}
+        <div class="generated-documents-list">
+          {% for document in generated_documents %}
+            <article>
+              <div>
+                <strong>{{ document.title }}</strong>
+                <span>
+                  {% if document.document_type == "analysis" %}
+                    Анализ документа
+                  {% else %}
+                    Черновик документа
+                  {% endif %}
+                </span>
+                <small>{{ document.created_at }}</small>
+              </div>
+
+              <div class="case-actions">
+                <a href="/api/generated-documents/{{ document.id }}/docx">Скачать Word</a>
+              </div>
+            </article>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="empty-state">
+          <h3>История пока пустая</h3>
+          <p>Подготовленные документы и сохранённые анализы появятся здесь.</p>
+        </div>
+      {% endif %}
+    </section>
+  </div>
+
+  <aside class="case-detail-side">
+    <section class="dashboard-panel">
+      <div class="panel-header">
+        <div>
+          <p class="eyebrow">Действия</p>
+          <h2>Быстрый запуск</h2>
+        </div>
+      </div>
+
+      <div class="case-detail-actions">
+        <a href="/document-builder?case_id={{ case.id }}">Подготовить документ</a>
+        <a href="/document-analysis?case_id={{ case.id }}">Проанализировать документ</a>
+        <a href="/ask">Задать вопрос</a>
+        <a href="/cases" class="secondary">Вернуться к списку</a>
+      </div>
+    </section>
+
+    <section class="dashboard-panel">
+      <div class="panel-header">
+        <div>
+          <p class="eyebrow">Задачи</p>
+          <h2>По делу</h2>
+        </div>
+      </div>
+
+      {% if tasks %}
+        <div class="case-detail-task-list">
+          {% for task in tasks %}
+            <article>
+              <strong>{{ task.title }}</strong>
+              <span>
+                {% if task.status == "open" %}Открыта
+                {% elif task.status == "in_progress" %}В работе
+                {% elif task.status == "done" %}Выполнена
+                {% else %}{{ task.status }}
+                {% endif %}
+              </span>
+              <small>{{ task.due_date or "Срок не указан" }}</small>
+            </article>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p class="hint">Задач по этому делу пока нет.</p>
+      {% endif %}
+    </section>
+  </aside>
+</section>
+
+<script src="{{ url_for('static', filename='js/cases.js') }}"></script>
+{% endblock %}

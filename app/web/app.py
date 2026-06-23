@@ -21,14 +21,21 @@ from app.services.documents.file_storage import (
     get_case_documents,
     get_document_file,
 )
+from app.services.documents.generated_store import (
+    save_generated_document,
+    get_case_generated_documents,
+    get_generated_document_by_id,
+)
 from app.services.settings_store import get_lawyer_profile, save_lawyer_profile
 from app.services.workspace_store import (
     get_dashboard_workspace,
     get_all_cases,
+    get_case_by_id,
     create_case,
     update_case,
     delete_case,
     get_all_tasks,
+    get_tasks_by_case,
     create_task,
     update_task,
     delete_task,
@@ -200,16 +207,28 @@ def create_app() -> Flask:
     @app.get("/document-builder")
     def document_builder_page():
         clients = get_all_clients()
+        cases = get_all_cases()
+        selected_case_id = request.args.get("case_id") or ""
 
         return render_template(
             "document_builder.html",
             app_name=settings.APP_NAME,
             clients=clients,
+            cases=cases,
+            selected_case_id=selected_case_id,
         )
 
     @app.get("/document-analysis")
     def document_analysis_page():
-        return render_template("document_analysis.html", app_name=settings.APP_NAME)
+        cases = get_all_cases()
+        selected_case_id = request.args.get("case_id") or ""
+
+        return render_template(
+            "document_analysis.html",
+            app_name=settings.APP_NAME,
+            cases=cases,
+            selected_case_id=selected_case_id,
+        )
 
     @app.get("/cases")
     def cases_page():
@@ -229,6 +248,29 @@ def create_app() -> Flask:
             tasks=tasks,
             clients=clients,
             documents_by_case=documents_by_case,
+        )
+
+    @app.get("/cases/<int:case_id>")
+    def case_detail_page(case_id: int):
+        case = get_case_by_id(case_id)
+
+        if not case:
+            return jsonify({
+                "status": "error",
+                "message": "Дело не найдено.",
+            }), 404
+
+        documents = get_case_documents(case_id)
+        tasks = get_tasks_by_case(case_id)
+        generated_documents = get_case_generated_documents(case_id)
+
+        return render_template(
+            "case_detail.html",
+            app_name=settings.APP_NAME,
+            case=case,
+            documents=documents,
+            tasks=tasks,
+            generated_documents=generated_documents,
         )
 
     @app.get("/clients")
@@ -354,6 +396,7 @@ def create_app() -> Flask:
         data = request.get_json(silent=True) or {}
         user_request = (data.get("request") or "").strip()
         client_id = data.get("client_id") or None
+        client_id = data.get("client_id") or None
 
         if not user_request:
             return jsonify({
@@ -373,6 +416,19 @@ def create_app() -> Flask:
             result["client"] = {
                 "id": selected_client["id"],
                 "full_name": selected_client["full_name"],
+            }
+
+        if result.get("status") == "ok" and case_id and result.get("draft"):
+            saved_document = save_generated_document({
+                "case_id": case_id,
+                "document_type": result.get("detected_family") or "draft",
+                "title": _build_generated_document_title(result.get("detected_family")),
+                "content": result["draft"],
+            })
+
+            result["saved_document"] = {
+                "id": saved_document["id"],
+                "title": saved_document["title"],
             }
 
         return jsonify(result)
@@ -404,10 +460,33 @@ def create_app() -> Flask:
             download_name=make_docx_filename(title),
         )
 
+    @app.get("/api/generated-documents/<int:document_id>/docx")
+    def api_download_generated_document_docx(document_id: int):
+        try:
+            document = get_generated_document_by_id(document_id)
+        except ValueError as error:
+            return jsonify({
+                "status": "error",
+                "message": str(error),
+            }), 404
+
+        file_stream = build_legal_docx(
+            content=document["content"],
+            title=document["title"],
+        )
+
+        return send_file(
+            file_stream,
+            mimetype=DOCX_MIME_TYPE,
+            as_attachment=True,
+            download_name=make_docx_filename(document["title"]),
+        )
+
     @app.post("/api/document-analysis")
     def api_document_analysis():
         data = request.get_json(silent=True) or {}
         document_text = (data.get("document_text") or "").strip()
+        case_id = data.get("case_id") or None
 
         if not document_text:
             return jsonify({
@@ -423,9 +502,23 @@ def create_app() -> Flask:
             knowledge_context=knowledge_context,
         )
 
+        saved_analysis = None
+
+        if case_id and analysis:
+            saved_analysis = save_generated_document({
+                "case_id": case_id,
+                "document_type": "analysis",
+                "title": "Анализ документа",
+                "content": analysis,
+            })
+
         return jsonify({
             "status": "ok",
             "analysis": analysis,
+            "saved_analysis": {
+                "id": saved_analysis["id"],
+                "title": saved_analysis["title"],
+            } if saved_analysis else None,
             "sources": [
                 {
                     "title": item["title"],
@@ -652,5 +745,29 @@ def create_app() -> Flask:
         return jsonify({
             "status": "ok",
         })
+
+    def _build_generated_document_title(document_family: str | None) -> str:
+        if document_family == "claim":
+            return "Претензия"
+
+        if document_family == "lawsuit":
+            return "Исковое заявление"
+
+        if document_family == "motion":
+            return "Ходатайство"
+
+        if document_family == "response":
+            return "Отзыв или возражения"
+
+        if document_family == "appeal":
+            return "Апелляционная жалоба"
+
+        if document_family == "cassation":
+            return "Кассационная жалоба"
+
+        if document_family == "complaint":
+            return "Жалоба"
+
+        return "Юридический документ"
 
     return app

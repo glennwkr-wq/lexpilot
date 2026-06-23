@@ -29,6 +29,20 @@
       извлечь текст не получится.
     </p>
 
+    <label for="analysisCaseId">Дело</label>
+    <select id="analysisCaseId" class="builder-client-select">
+      <option value="">Без привязки к делу</option>
+      {% for case in cases %}
+        <option value="{{ case.id }}" {% if selected_case_id|string == case.id|string %}selected{% endif %}>
+          {{ case.title }}
+        </option>
+      {% endfor %}
+    </select>
+
+    <p class="hint">
+      Если выбрать дело, результат анализа сохранится в его карточке.
+    </p>
+
     <label for="documentText">Текст документа</label>
     <textarea
       id="documentText"

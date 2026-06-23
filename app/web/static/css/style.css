@@ -1548,3 +1548,126 @@ button.secondary {
     grid-template-columns: 1fr;
   }
 }
+
+.case-detail-layout {
+  max-width: 1180px;
+  margin-top: 24px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 22px;
+  align-items: start;
+}
+
+.case-detail-main,
+.case-detail-side {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.case-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.case-detail-grid div,
+.case-detail-description {
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 14px;
+  background: #fafafa;
+}
+
+.case-detail-grid span,
+.case-detail-description span {
+  display: block;
+  color: var(--muted);
+  font-size: 13px;
+  margin-bottom: 6px;
+}
+
+.case-detail-grid strong {
+  display: block;
+  line-height: 1.45;
+}
+
+.case-detail-description {
+  margin-top: 14px;
+}
+
+.case-detail-description p {
+  margin: 0;
+  color: var(--text);
+  line-height: 1.6;
+}
+
+.case-detail-actions {
+  display: grid;
+  gap: 10px;
+}
+
+.case-detail-actions a {
+  display: block;
+  text-decoration: none;
+  color: white;
+  background: var(--accent);
+  border-radius: 12px;
+  padding: 13px 14px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.case-detail-actions a.secondary {
+  background: #e5e7eb;
+  color: var(--text);
+}
+
+.case-detail-task-list,
+.generated-documents-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.case-detail-task-list article,
+.generated-documents-list article {
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 14px;
+  background: #fafafa;
+}
+
+.case-detail-task-list strong,
+.case-detail-task-list span,
+.case-detail-task-list small,
+.generated-documents-list strong,
+.generated-documents-list span,
+.generated-documents-list small {
+  display: block;
+}
+
+.case-detail-task-list span,
+.generated-documents-list span {
+  margin-top: 6px;
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.case-detail-task-list small,
+.generated-documents-list small {
+  margin-top: 6px;
+  color: var(--muted);
+}
+
+.detail-documents-list {
+  margin-top: 14px;
+}
+
+@media (max-width: 1000px) {
+  .case-detail-layout,
+  .case-detail-grid {
+    grid-template-columns: 1fr;
+  }
+}

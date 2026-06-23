@@ -191,7 +191,8 @@
           </div>
 
           <div class="case-actions">
-            <a href="/document-builder">Подготовить документ</a>
+            <a href="/cases/{{ case.id }}">Открыть дело</a>
+            <a href="/document-builder?case_id={{ case.id }}">Подготовить документ</a>
             <a href="/ask">Задать вопрос</a>
             <button class="edit-case-button" type="button">Редактировать</button>
             <button class="delete-case-button secondary" type="button">Удалить</button>
@@ -323,10 +324,8 @@
           <summary>Действия</summary>
 
           <div class="case-actions">
-            <a href="/document-builder">Подготовить документ</a>
-            <a href="/ask">Задать вопрос</a>
-            <button class="edit-case-button" type="button">Редактировать</button>
-            <button class="delete-case-button secondary" type="button">Удалить</button>
+            <button class="edit-task-button" type="button">Редактировать</button>
+            <button class="delete-task-button secondary" type="button">Удалить</button>
           </div>
         </details>
       </article>

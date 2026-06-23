@@ -1,6 +1,7 @@
 const analysisFileInput = document.getElementById("analysisFileInput");
 const extractAnalysisFileButton = document.getElementById("extractAnalysisFileButton");
 const documentTextInput = document.getElementById("documentText");
+const analysisCaseIdInput = document.getElementById("analysisCaseId");
 const analyzeDocumentButton = document.getElementById("analyzeDocumentButton");
 const documentAnalysisBox = document.getElementById("documentAnalysisBox");
 const analysisSourcesBox = document.getElementById("analysisSourcesBox");
@@ -96,7 +97,10 @@ analyzeDocumentButton.addEventListener("click", async () => {
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ document_text: documentText }),
+      body: JSON.stringify({
+        document_text: documentText,
+        case_id: analysisCaseIdInput ? analysisCaseIdInput.value : "",
+      }),
     });
 
     const data = await response.json();
@@ -110,6 +114,9 @@ analyzeDocumentButton.addEventListener("click", async () => {
     documentAnalysisBox.textContent = data.analysis || "Анализ не был сформирован.";
     renderAnalysisSources(data.sources);
     analysisStatusBadge.textContent = "Анализ готов";
+    if (data.saved_analysis) {
+      analysisStatusBadge.textContent = "Анализ сохранён в дело";
+    }
   } catch (error) {
     documentAnalysisBox.textContent = "Ошибка соединения с сервером.";
     analysisSourcesBox.textContent = "";

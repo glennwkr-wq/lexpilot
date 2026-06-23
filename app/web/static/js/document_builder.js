@@ -1,6 +1,7 @@
 const documentRequestInput = document.getElementById("documentRequest");
 const additionalDocumentDataInput = document.getElementById("additionalDocumentData");
 const builderClientIdInput = document.getElementById("builderClientId");
+const builderCaseIdInput = document.getElementById("builderCaseId");
 const generateDocumentButton = document.getElementById("generateDocumentButton");
 const downloadDocumentButton = document.getElementById("downloadDocumentButton");
 const documentDraftBox = document.getElementById("documentDraftBox");
@@ -72,6 +73,7 @@ generateDocumentButton.addEventListener("click", async () => {
       body: JSON.stringify({
         request: buildCombinedRequest(requestText, additionalText),
         client_id: builderClientIdInput ? builderClientIdInput.value : "",
+        case_id: builderCaseIdInput ? builderCaseIdInput.value : "",
       }),
     });
 
@@ -90,6 +92,9 @@ generateDocumentButton.addEventListener("click", async () => {
     documentDraftBox.textContent = currentDocumentDraft || "Документ не был сформирован.";
     renderDocumentSources(data.sources);
     documentStatusBadge.textContent = "Черновик готов";
+    if (data.saved_document) {
+      documentStatusBadge.textContent = "Черновик сохранён в дело";
+    }
 
     if (downloadDocumentButton) {
       downloadDocumentButton.disabled = !currentDocumentDraft;

@@ -138,6 +138,33 @@ def get_all_cases() -> list[dict]:
 
     return [dict(row) for row in rows]
 
+def get_case_by_id(case_id: int) -> dict | None:
+    ensure_workspace_tables()
+
+    with SessionLocal() as session:
+        row = session.execute(text("""
+            SELECT
+                c.id,
+                c.title,
+                c.client_id,
+                COALESCE(cl.full_name, c.client_name) AS client_name,
+                c.client_name AS legacy_client_name,
+                c.opponent_name,
+                c.category,
+                c.status,
+                c.description,
+                c.next_action,
+                c.deadline,
+                c.created_at,
+                c.updated_at
+            FROM cases c
+            LEFT JOIN clients cl ON cl.id = c.client_id
+            WHERE c.id = :id
+            LIMIT 1
+        """), {"id": case_id}).mappings().fetchone()
+
+    return dict(row) if row else None
+
 def create_case(data: dict) -> dict:
     ensure_workspace_tables()
 
@@ -280,6 +307,39 @@ def get_all_tasks() -> list[dict]:
 
     return [dict(row) for row in rows]
 
+def get_tasks_by_case(case_id: int) -> list[dict]:
+    ensure_workspace_tables()
+
+    with SessionLocal() as session:
+        rows = session.execute(text("""
+            SELECT
+                t.id,
+                t.case_id,
+                t.title,
+                t.description,
+                t.due_date,
+                t.priority,
+                t.status,
+                t.created_at,
+                t.updated_at,
+                c.title AS case_title
+            FROM tasks t
+            LEFT JOIN cases c ON c.id = t.case_id
+            WHERE t.case_id = :case_id
+            ORDER BY
+                CASE
+                    WHEN t.status = 'done' THEN 1
+                    ELSE 0
+                END,
+                CASE
+                    WHEN t.due_date IS NULL THEN 1
+                    ELSE 0
+                END,
+                t.due_date ASC,
+                t.id DESC
+        """), {"case_id": case_id}).mappings().fetchall()
+
+    return [dict(row) for row in rows]
 
 def create_task(data: dict) -> dict:
     ensure_workspace_tables()

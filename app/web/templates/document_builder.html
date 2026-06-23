@@ -20,6 +20,16 @@
       {% endfor %}
     </select>
 
+    <label for="builderCaseId">Дело</label>
+    <select id="builderCaseId" class="builder-client-select">
+      <option value="">Без привязки к делу</option>
+      {% for case in cases %}
+        <option value="{{ case.id }}" {% if selected_case_id|string == case.id|string %}selected{% endif %}>
+          {{ case.title }}
+        </option>
+      {% endfor %}
+    </select>
+
     <p class="hint">
       Если выбрать клиента, LexPilot учтёт его реквизиты при подготовке черновика.
       Если документ готовится не от имени клиента, оставьте поле пустым.
