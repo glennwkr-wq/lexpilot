@@ -5,6 +5,10 @@ const knowledgeSearchInput = document.getElementById("knowledgeSearchInput");
 const knowledgeOriginFilter = document.getElementById("knowledgeOriginFilter");
 const knowledgeDocumentsList = document.getElementById("knowledgeDocumentsList");
 const knowledgeNoResults = document.getElementById("knowledgeNoResults");
+const knowledgeShowMoreButton = document.getElementById("knowledgeShowMoreButton");
+
+const KNOWLEDGE_PAGE_SIZE = 12;
+let knowledgeVisibleLimit = KNOWLEDGE_PAGE_SIZE;
 
 function setKnowledgeStatus(message, isError = false) {
   if (!knowledgeFormStatus) {
@@ -80,28 +84,47 @@ if (knowledgeResetButton && knowledgeForm) {
   });
 }
 
-function applyKnowledgeFilters() {
+function getKnowledgeItems() {
   if (!knowledgeDocumentsList) {
-    return;
+    return [];
   }
 
+  return Array.from(
+    knowledgeDocumentsList.querySelectorAll(".knowledge-compact-item")
+  );
+}
+
+function getFilteredKnowledgeItems() {
   const query = (knowledgeSearchInput?.value || "").trim().toLowerCase();
   const origin = knowledgeOriginFilter?.value || "all";
 
-  const items = Array.from(
-    knowledgeDocumentsList.querySelectorAll(".knowledge-doc-item")
-  );
-
-  let visibleCount = 0;
-
-  items.forEach((item) => {
+  return getKnowledgeItems().filter((item) => {
     const searchText = item.dataset.search || "";
     const itemOrigin = item.dataset.origin || "system";
 
     const matchesQuery = !query || searchText.includes(query);
     const matchesOrigin = origin === "all" || itemOrigin === origin;
 
-    const shouldShow = matchesQuery && matchesOrigin;
+    return matchesQuery && matchesOrigin;
+  });
+}
+
+function applyKnowledgeFilters() {
+  const allItems = getKnowledgeItems();
+
+  if (!allItems.length) {
+    return;
+  }
+
+  const filteredItems = getFilteredKnowledgeItems();
+  const filteredSet = new Set(filteredItems);
+
+  let visibleCount = 0;
+
+  allItems.forEach((item) => {
+    const isFiltered = filteredSet.has(item);
+    const shouldShow =
+      isFiltered && visibleCount < knowledgeVisibleLimit;
 
     item.classList.toggle("knowledge-hidden", !shouldShow);
 
@@ -111,14 +134,33 @@ function applyKnowledgeFilters() {
   });
 
   if (knowledgeNoResults) {
-    knowledgeNoResults.classList.toggle("knowledge-hidden", visibleCount > 0);
+    knowledgeNoResults.classList.toggle("knowledge-hidden", filteredItems.length > 0);
+  }
+
+  if (knowledgeShowMoreButton) {
+    const shouldShowButton = filteredItems.length > knowledgeVisibleLimit;
+    knowledgeShowMoreButton.classList.toggle("knowledge-hidden", !shouldShowButton);
   }
 }
 
+function resetKnowledgeLimitAndApply() {
+  knowledgeVisibleLimit = KNOWLEDGE_PAGE_SIZE;
+  applyKnowledgeFilters();
+}
+
 if (knowledgeSearchInput) {
-  knowledgeSearchInput.addEventListener("input", applyKnowledgeFilters);
+  knowledgeSearchInput.addEventListener("input", resetKnowledgeLimitAndApply);
 }
 
 if (knowledgeOriginFilter) {
-  knowledgeOriginFilter.addEventListener("change", applyKnowledgeFilters);
+  knowledgeOriginFilter.addEventListener("change", resetKnowledgeLimitAndApply);
 }
+
+if (knowledgeShowMoreButton) {
+  knowledgeShowMoreButton.addEventListener("click", () => {
+    knowledgeVisibleLimit += KNOWLEDGE_PAGE_SIZE;
+    applyKnowledgeFilters();
+  });
+}
+
+applyKnowledgeFilters();

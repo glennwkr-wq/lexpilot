@@ -178,27 +178,57 @@
   </div>
 
   {% if stats.documents %}
-    <div class="knowledge-doc-list" id="knowledgeDocumentsList">
+    <div class="knowledge-compact-list" id="knowledgeDocumentsList">
       {% for document in stats.documents %}
         <article
-          class="knowledge-doc-item"
+          class="knowledge-compact-item"
           data-origin="{% if document.source == 'manual' %}manual{% else %}system{% endif %}"
           data-search="{{ (document.title ~ ' ' ~ document.document_type_label ~ ' ' ~ (document.source_url or ''))|lower }}"
+          data-visible-index="{{ loop.index0 }}"
         >
-          <div>
-            <strong>{{ document.title }}</strong>
-            <span>{{ document.document_type_label }}</span>
-            <small>{{ document.origin_label }}</small>
+          <div class="knowledge-compact-main">
+            <div>
+              <div class="knowledge-compact-kicker">
+                <span>{{ document.document_type_label }}</span>
+                <small>{{ document.origin_label }}</small>
+              </div>
+
+              <h3>{{ document.title }}</h3>
+
+              {% if document.document_date %}
+                <p>Дата документа: {{ document.document_date }}</p>
+              {% else %}
+                <p>Дата документа не указана</p>
+              {% endif %}
+            </div>
+
+            <div class="knowledge-compact-side">
+              <span class="status-pill {% if document.source == 'manual' %}success{% endif %}">
+                {% if document.source == 'manual' %}
+                  Добавлено юристом
+                {% else %}
+                  Системный материал
+                {% endif %}
+              </span>
+            </div>
           </div>
 
-          <div class="knowledge-doc-meta">
-            {% if document.document_date %}
-              <small>Дата документа: {{ document.document_date }}</small>
-            {% endif %}
-            <small>{{ document.source_url }}</small>
-          </div>
+          <details class="knowledge-compact-details">
+            <summary>Подробнее</summary>
+            <div>
+              <p><strong>Тип:</strong> {{ document.document_type_label }}</p>
+              <p><strong>Источник:</strong> {{ document.source_url }}</p>
+              <p><strong>Происхождение:</strong> {{ document.origin_label }}</p>
+            </div>
+          </details>
         </article>
       {% endfor %}
+    </div>
+
+    <div class="knowledge-list-actions">
+      <button type="button" class="secondary" id="knowledgeShowMoreButton">
+        Показать ещё
+      </button>
     </div>
 
     <div class="empty-state knowledge-hidden" id="knowledgeNoResults">
