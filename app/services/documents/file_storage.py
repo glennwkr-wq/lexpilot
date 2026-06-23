@@ -53,7 +53,11 @@ def save_case_file(case_id: int, uploaded_file: FileStorage) -> dict:
 
     CASE_UPLOAD_ROOT.mkdir(parents=True, exist_ok=True)
 
-    safe_name = secure_filename(original_filename) or f"document{extension}"
+    safe_name = secure_filename(original_filename)
+
+    if not Path(safe_name).suffix:
+        safe_name = f"document{extension}"
+
     stored_filename = f"{uuid4().hex}_{safe_name}"
     file_path = (CASE_UPLOAD_ROOT / stored_filename).resolve()
 
@@ -169,7 +173,11 @@ def save_temp_file_and_extract(uploaded_file: FileStorage) -> dict:
 
     TEMP_UPLOAD_ROOT.mkdir(parents=True, exist_ok=True)
 
-    safe_name = secure_filename(original_filename) or f"document{extension}"
+    safe_name = secure_filename(original_filename)
+
+    if not Path(safe_name).suffix:
+        safe_name = f"document{extension}"
+
     stored_filename = f"{uuid4().hex}_{safe_name}"
     file_path = (TEMP_UPLOAD_ROOT / stored_filename).resolve()
 
