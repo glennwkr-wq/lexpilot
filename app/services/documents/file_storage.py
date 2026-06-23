@@ -3,6 +3,7 @@ from uuid import uuid4
 import shutil
 
 import docx2txt
+from docx import Document
 from pypdf import PdfReader
 from werkzeug.datastructures import FileStorage
 from werkzeug.utils import secure_filename
@@ -187,7 +188,7 @@ def extract_text_from_file(file_path: str | Path) -> str:
         return path.read_text(encoding="utf-8", errors="ignore").strip()
 
     if extension == ".docx":
-        return (docx2txt.process(str(path)) or "").strip()
+        return _extract_docx_text(path)
 
     if extension == ".pdf":
         return _extract_pdf_text(path)
@@ -216,3 +217,39 @@ def _validate_extension(filename: str) -> str:
         raise ValueError("Поддерживаются только файлы PDF, DOCX и TXT.")
 
     return extension
+
+
+
+def _extract_docx_text(path: Path) -> str:
+    parts = []
+
+    try:
+        doc = Document(str(path))
+
+        for paragraph in doc.paragraphs:
+            text = paragraph.text.strip()
+            if text:
+                parts.append(text)
+
+        for table in doc.tables:
+            for row in table.rows:
+                cells = [
+                    cell.text.strip()
+                    for cell in row.cells
+                    if cell.text.strip()
+                ]
+
+                if cells:
+                    parts.append(" | ".join(cells))
+    except Exception:
+        pass
+
+    text = "\n\n".join(parts).strip()
+
+    if text:
+        return text
+
+    try:
+        return (docx2txt.process(str(path)) or "").strip()
+    except Exception:
+        return ""
