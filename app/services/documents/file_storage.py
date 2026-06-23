@@ -1,5 +1,7 @@
 from pathlib import Path
 from uuid import uuid4
+import zipfile
+import xml.etree.ElementTree as ET
 
 import docx2txt
 from docx import Document
@@ -205,8 +207,23 @@ def extract_text_from_file(file_path: str | Path) -> str:
 
     raise ValueError("Поддерживаются только PDF, DOCX и TXT.")
 
-
 def _extract_docx_text(path: Path) -> str:
+    extractors = [
+        _extract_docx_text_with_python_docx,
+        _extract_docx_text_with_docx2txt,
+        _extract_docx_text_from_xml,
+    ]
+
+    for extractor in extractors:
+        text = extractor(path).strip()
+
+        if text:
+            return text
+
+    return ""
+
+
+def _extract_docx_text_with_python_docx(path: Path) -> str:
     parts = []
 
     try:
@@ -231,18 +248,49 @@ def _extract_docx_text(path: Path) -> str:
                 if cells:
                     parts.append(" | ".join(cells))
     except Exception:
-        pass
+        return ""
 
-    text = "\n\n".join(parts).strip()
+    return "\n\n".join(parts).strip()
 
-    if text:
-        return text
 
+def _extract_docx_text_with_docx2txt(path: Path) -> str:
     try:
         return (docx2txt.process(str(path)) or "").strip()
     except Exception:
         return ""
 
+
+def _extract_docx_text_from_xml(path: Path) -> str:
+    if not zipfile.is_zipfile(path):
+        return ""
+
+    try:
+        with zipfile.ZipFile(path) as archive:
+            xml_content = archive.read("word/document.xml")
+    except Exception:
+        return ""
+
+    try:
+        root = ET.fromstring(xml_content)
+    except Exception:
+        return ""
+
+    namespace = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
+    paragraphs = []
+
+    for paragraph in root.iter(f"{namespace}p"):
+        texts = []
+
+        for node in paragraph.iter(f"{namespace}t"):
+            if node.text:
+                texts.append(node.text)
+
+        paragraph_text = "".join(texts).strip()
+
+        if paragraph_text:
+            paragraphs.append(paragraph_text)
+
+    return "\n\n".join(paragraphs).strip()
 
 def _extract_pdf_text(path: Path) -> str:
     reader = PdfReader(str(path))
