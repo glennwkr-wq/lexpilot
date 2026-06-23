@@ -259,38 +259,77 @@ def _extract_docx_text_with_docx2txt(path: Path) -> str:
     except Exception:
         return ""
 
-
 def _extract_docx_text_from_xml(path: Path) -> str:
     if not zipfile.is_zipfile(path):
         return ""
 
+    xml_files = []
+
     try:
         with zipfile.ZipFile(path) as archive:
-            xml_content = archive.read("word/document.xml")
+            for name in archive.namelist():
+                if not name.startswith("word/"):
+                    continue
+
+                if not name.endswith(".xml"):
+                    continue
+
+                if name.startswith("word/theme/"):
+                    continue
+
+                if name.startswith("word/_rels/"):
+                    continue
+
+                xml_files.append(name)
+
+            parts = []
+
+            for name in xml_files:
+                try:
+                    xml_content = archive.read(name)
+                except Exception:
+                    continue
+
+                extracted = _extract_text_from_word_xml(xml_content)
+
+                if extracted:
+                    parts.append(extracted)
+
     except Exception:
         return ""
 
+    return "\n\n".join(parts).strip()
+
+
+def _extract_text_from_word_xml(xml_content: bytes) -> str:
     try:
         root = ET.fromstring(xml_content)
     except Exception:
         return ""
 
-    namespace = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
-    paragraphs = []
+    text_nodes = []
 
-    for paragraph in root.iter(f"{namespace}p"):
-        texts = []
+    for node in root.iter():
+        tag = node.tag
 
-        for node in paragraph.iter(f"{namespace}t"):
-            if node.text:
-                texts.append(node.text)
+        if tag.endswith("}t") and node.text:
+            text_nodes.append(node.text)
 
-        paragraph_text = "".join(texts).strip()
+        if tag.endswith("}tab"):
+            text_nodes.append("\t")
 
-        if paragraph_text:
-            paragraphs.append(paragraph_text)
+        if tag.endswith("}br") or tag.endswith("}cr"):
+            text_nodes.append("\n")
 
-    return "\n\n".join(paragraphs).strip()
+    text = "".join(text_nodes)
+
+    lines = [
+        line.strip()
+        for line in text.splitlines()
+        if line.strip()
+    ]
+
+    return "\n".join(lines).strip()
 
 def _extract_pdf_text(path: Path) -> str:
     reader = PdfReader(str(path))
