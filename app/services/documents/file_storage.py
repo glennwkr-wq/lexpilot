@@ -1,6 +1,5 @@
 from pathlib import Path
 from uuid import uuid4
-import shutil
 
 import docx2txt
 from docx import Document
@@ -13,7 +12,9 @@ from sqlalchemy import text
 from app.db.session import SessionLocal
 
 
-UPLOAD_ROOT = Path("uploads")
+PROJECT_ROOT = Path.cwd().resolve()
+
+UPLOAD_ROOT = PROJECT_ROOT / "uploads"
 CASE_UPLOAD_ROOT = UPLOAD_ROOT / "cases"
 TEMP_UPLOAD_ROOT = UPLOAD_ROOT / "temp"
 
@@ -52,11 +53,14 @@ def save_case_file(case_id: int, uploaded_file: FileStorage) -> dict:
 
     safe_name = secure_filename(original_filename) or f"document{extension}"
     stored_filename = f"{uuid4().hex}_{safe_name}"
-    file_path = CASE_UPLOAD_ROOT / stored_filename
+    file_path = (CASE_UPLOAD_ROOT / stored_filename).resolve()
 
     uploaded_file.save(file_path)
 
-    extracted_text = extract_text_from_file(file_path)
+    try:
+        extracted_text = extract_text_from_file(file_path)
+    except Exception:
+        extracted_text = ""
 
     with SessionLocal() as session:
         row = session.execute(text("""
@@ -144,10 +148,13 @@ def get_document_file(document_id: int) -> dict:
     result = dict(row)
     path = Path(result["file_path"])
 
-    if not path.exists():
-        raise ValueError("Файл отсутствует на диске.")
+    if not path.is_absolute():
+        path = (PROJECT_ROOT / path).resolve()
 
-    result["path"] = path
+    if not path.exists():
+        raise ValueError("Файл отсутствует на диске. Возможно, Render перезапустил сервис и временное файловое хранилище было очищено.")
+
+    result["path"] = str(path)
     return result
 
 
@@ -162,14 +169,17 @@ def save_temp_file_and_extract(uploaded_file: FileStorage) -> dict:
 
     safe_name = secure_filename(original_filename) or f"document{extension}"
     stored_filename = f"{uuid4().hex}_{safe_name}"
-    file_path = TEMP_UPLOAD_ROOT / stored_filename
+    file_path = (TEMP_UPLOAD_ROOT / stored_filename).resolve()
 
     uploaded_file.save(file_path)
 
     extracted_text = extract_text_from_file(file_path)
 
     if not extracted_text.strip():
-        raise ValueError("Не удалось извлечь текст из файла.")
+        raise ValueError(
+            "Не удалось извлечь текст из файла. "
+            "Если это PDF-скан, нужен OCR. Если это DOC, сохраните файл как DOCX."
+        )
 
     return {
         "filename": stored_filename,
@@ -196,6 +206,44 @@ def extract_text_from_file(file_path: str | Path) -> str:
     raise ValueError("Поддерживаются только PDF, DOCX и TXT.")
 
 
+def _extract_docx_text(path: Path) -> str:
+    parts = []
+
+    try:
+        document = Document(str(path))
+
+        for paragraph in document.paragraphs:
+            text = paragraph.text.strip()
+
+            if text:
+                parts.append(text)
+
+        for table in document.tables:
+            for row in table.rows:
+                cells = []
+
+                for cell in row.cells:
+                    text = cell.text.strip()
+
+                    if text:
+                        cells.append(text)
+
+                if cells:
+                    parts.append(" | ".join(cells))
+    except Exception:
+        pass
+
+    text = "\n\n".join(parts).strip()
+
+    if text:
+        return text
+
+    try:
+        return (docx2txt.process(str(path)) or "").strip()
+    except Exception:
+        return ""
+
+
 def _extract_pdf_text(path: Path) -> str:
     reader = PdfReader(str(path))
     pages = []
@@ -217,39 +265,3 @@ def _validate_extension(filename: str) -> str:
         raise ValueError("Поддерживаются только файлы PDF, DOCX и TXT.")
 
     return extension
-
-
-
-def _extract_docx_text(path: Path) -> str:
-    parts = []
-
-    try:
-        doc = Document(str(path))
-
-        for paragraph in doc.paragraphs:
-            text = paragraph.text.strip()
-            if text:
-                parts.append(text)
-
-        for table in doc.tables:
-            for row in table.rows:
-                cells = [
-                    cell.text.strip()
-                    for cell in row.cells
-                    if cell.text.strip()
-                ]
-
-                if cells:
-                    parts.append(" | ".join(cells))
-    except Exception:
-        pass
-
-    text = "\n\n".join(parts).strip()
-
-    if text:
-        return text
-
-    try:
-        return (docx2txt.process(str(path)) or "").strip()
-    except Exception:
-        return ""
