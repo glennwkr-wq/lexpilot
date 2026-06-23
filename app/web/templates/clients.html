@@ -1,0 +1,216 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="page-header">
+  <p class="eyebrow">Клиентская база</p>
+  <h1>Клиенты</h1>
+  <p>
+    Единый список доверителей и организаций. Эти данные позже будут использоваться
+    при создании дел и подготовке документов: претензий, исков, жалоб и договоров.
+  </p>
+</section>
+
+<section class="cases-filters clients-filters">
+  <input id="clientSearchInput" type="search" placeholder="Поиск по клиентам, телефону, ИНН, email...">
+
+  <select id="clientTypeFilter">
+    <option value="all">Все клиенты</option>
+    <option value="person">Физические лица</option>
+    <option value="individual_entrepreneur">ИП</option>
+    <option value="company">Организации</option>
+  </select>
+
+  <button id="newClientButton" type="button">Добавить клиента</button>
+</section>
+
+<section class="workspace-group">
+  <section class="cases-toolbar">
+    <div>
+      <h2>База клиентов</h2>
+      <p>Компактный список клиентов. Реквизиты и заметки раскрываются внутри карточки.</p>
+    </div>
+
+    <span class="status-pill">{{ clients|length }} записей</span>
+  </section>
+
+  <section class="cases-editor" id="clientEditor" hidden>
+    <form id="clientForm" class="case-form">
+      <input type="hidden" id="clientId">
+
+      <div class="form-grid">
+        <div>
+          <label for="clientType">Тип клиента</label>
+          <select id="clientType" name="client_type">
+            <option value="person">Физическое лицо</option>
+            <option value="individual_entrepreneur">ИП</option>
+            <option value="company">Организация</option>
+          </select>
+        </div>
+
+        <div>
+          <label for="clientFullName">ФИО / наименование *</label>
+          <input id="clientFullName" name="full_name" placeholder="Иванов Иван Иванович / ООО Ромашка">
+        </div>
+
+        <div>
+          <label for="clientShortName">Краткое имя</label>
+          <input id="clientShortName" name="short_name" placeholder="Иванов И.И. / ООО Ромашка">
+        </div>
+
+        <div>
+          <label for="clientPhone">Телефон</label>
+          <input id="clientPhone" name="phone" placeholder="+7 ...">
+        </div>
+
+        <div>
+          <label for="clientEmail">Email</label>
+          <input id="clientEmail" name="email" placeholder="mail@example.com">
+        </div>
+
+        <div>
+          <label for="clientInn">ИНН</label>
+          <input id="clientInn" name="inn" placeholder="ИНН">
+        </div>
+
+        <div>
+          <label for="clientOgrn">ОГРН / ОГРНИП</label>
+          <input id="clientOgrn" name="ogrn" placeholder="ОГРН или ОГРНИП">
+        </div>
+
+        <div>
+          <label for="clientRepresentative">Представитель</label>
+          <input id="clientRepresentative" name="representative" placeholder="Генеральный директор, представитель по доверенности...">
+        </div>
+      </div>
+
+      <label for="clientAddress">Адрес</label>
+      <textarea id="clientAddress" name="address" placeholder="Адрес регистрации, юридический адрес или адрес для корреспонденции"></textarea>
+
+      <label for="clientPassport">Паспортные данные / сведения о документе</label>
+      <textarea id="clientPassport" name="passport_details" placeholder="Заполняйте только при необходимости и с учётом конфиденциальности"></textarea>
+
+      <label for="clientNotes">Комментарий</label>
+      <textarea id="clientNotes" name="notes" placeholder="Особенности клиента, договорённости, важные детали"></textarea>
+
+      <div class="form-actions">
+        <button type="submit">Сохранить клиента</button>
+        <button id="cancelClientButton" class="secondary" type="button">Отменить</button>
+      </div>
+
+      <p id="clientFormStatus" class="hint"></p>
+    </form>
+  </section>
+
+  <section class="compact-list" id="clientsList">
+    {% if clients %}
+      {% for client in clients %}
+        <article
+          class="compact-row compact-record client-card"
+          data-client-id="{{ client.id }}"
+          data-client-type="{{ client.client_type }}"
+          data-full-name="{{ client.full_name or '' }}"
+          data-short-name="{{ client.short_name or '' }}"
+          data-phone="{{ client.phone or '' }}"
+          data-email="{{ client.email or '' }}"
+          data-address="{{ client.address or '' }}"
+          data-inn="{{ client.inn or '' }}"
+          data-ogrn="{{ client.ogrn or '' }}"
+          data-passport-details="{{ client.passport_details or '' }}"
+          data-representative="{{ client.representative or '' }}"
+          data-notes="{{ client.notes or '' }}"
+        >
+          <div class="compact-main">
+            <div>
+              <div class="compact-kicker">
+                <span class="entity-type-pill">Клиент</span>
+                <span>
+                  {% if client.client_type == "person" %}Физическое лицо
+                  {% elif client.client_type == "individual_entrepreneur" %}ИП
+                  {% elif client.client_type == "company" %}Организация
+                  {% else %}{{ client.client_type }}
+                  {% endif %}
+                </span>
+              </div>
+
+              <h3>{{ client.full_name }}</h3>
+
+              <p>
+                {% if client.phone %}{{ client.phone }}{% else %}Телефон не указан{% endif %}
+                {% if client.email %} · {{ client.email }}{% endif %}
+              </p>
+            </div>
+
+            <div class="compact-side">
+              <span class="status-pill">
+                {% if client.inn %}
+                  ИНН {{ client.inn }}
+                {% else %}
+                  ИНН не указан
+                {% endif %}
+              </span>
+
+              <small>
+                {% if client.short_name %}
+                  {{ client.short_name }}
+                {% else %}
+                  Краткое имя не указано
+                {% endif %}
+              </small>
+            </div>
+          </div>
+
+          <details class="compact-details">
+            <summary>Реквизиты и действия</summary>
+
+            <div class="client-details-grid">
+              <div>
+                <span>Адрес</span>
+                <strong>{{ client.address or "Не указан" }}</strong>
+              </div>
+
+              <div>
+                <span>ОГРН / ОГРНИП</span>
+                <strong>{{ client.ogrn or "Не указан" }}</strong>
+              </div>
+
+              <div>
+                <span>Представитель</span>
+                <strong>{{ client.representative or "Не указан" }}</strong>
+              </div>
+
+              <div>
+                <span>Паспортные данные / документ</span>
+                <strong>{{ client.passport_details or "Не указаны" }}</strong>
+              </div>
+            </div>
+
+            {% if client.notes %}
+              <div class="case-next-action">
+                <span>Комментарий</span>
+                <strong>{{ client.notes }}</strong>
+              </div>
+            {% endif %}
+
+            <div class="case-actions">
+              <button class="edit-client-button" type="button">Редактировать</button>
+              <button class="delete-client-button secondary" type="button">Удалить</button>
+            </div>
+          </details>
+        </article>
+      {% endfor %}
+    {% else %}
+      <div class="empty-state wide-empty">
+        <h3>Клиенты пока не добавлены</h3>
+        <p>Нажмите “Добавить клиента”, заполните карточку — и клиент появится в базе.</p>
+      </div>
+    {% endif %}
+  </section>
+
+  <div class="empty-state wide-empty" id="clientsNoResults" hidden>
+    <h3>Клиенты не найдены</h3>
+    <p>Попробуйте изменить поисковый запрос или фильтр.</p>
+  </div>
+</section>
+
+<script src="{{ url_for('static', filename='js/clients.js') }}"></script>
+{% endblock %}

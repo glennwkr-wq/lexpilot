@@ -61,7 +61,18 @@
 
       <div>
         <label for="caseClient">Клиент</label>
-        <input id="caseClient" name="client_name" placeholder="ООО Вектор">
+        <input
+          id="caseClient"
+          name="client_name"
+          list="clientsDatalist"
+          placeholder="Начните вводить имя клиента"
+        >
+
+        <datalist id="clientsDatalist">
+          {% for client in clients %}
+            <option value="{{ client.full_name }}">
+          {% endfor %}
+        </datalist>
       </div>
 
       <div>

@@ -22,6 +22,12 @@ from app.services.workspace_store import (
     update_task,
     delete_task,
 )
+from app.services.clients_store import (
+    get_all_clients,
+    create_client,
+    update_client,
+    delete_client,
+)
 
 KNOWLEDGE_TYPE_LABELS = {
     "00_system_rules": "Системные правила",
@@ -190,12 +196,24 @@ def create_app() -> Flask:
     def cases_page():
         cases = get_all_cases()
         tasks = get_all_tasks()
+        clients = get_all_clients()
 
         return render_template(
             "cases.html",
             app_name=settings.APP_NAME,
             cases=cases,
             tasks=tasks,
+            clients=clients,
+        )
+
+    @app.get("/clients")
+    def clients_page():
+        clients = get_all_clients()
+
+        return render_template(
+            "clients.html",
+            app_name=settings.APP_NAME,
+            clients=clients,
         )
 
     @app.get("/knowledge")
@@ -373,6 +391,56 @@ def create_app() -> Flask:
     def api_delete_case(case_id: int):
         try:
             delete_case(case_id)
+        except ValueError as error:
+            return jsonify({
+                "status": "error",
+                "message": str(error),
+            }), 404
+
+        return jsonify({
+            "status": "ok",
+        })
+
+    @app.post("/api/clients")
+    def api_create_client():
+        data = request.get_json(silent=True) or {}
+
+        try:
+            client = create_client(data)
+        except ValueError as error:
+            return jsonify({
+                "status": "error",
+                "message": str(error),
+            }), 400
+
+        return jsonify({
+            "status": "ok",
+            "client": client,
+        })
+
+
+    @app.put("/api/clients/<int:client_id>")
+    def api_update_client(client_id: int):
+        data = request.get_json(silent=True) or {}
+
+        try:
+            client = update_client(client_id, data)
+        except ValueError as error:
+            return jsonify({
+                "status": "error",
+                "message": str(error),
+            }), 400
+
+        return jsonify({
+            "status": "ok",
+            "client": client,
+        })
+
+
+    @app.delete("/api/clients/<int:client_id>")
+    def api_delete_client(client_id: int):
+        try:
+            delete_client(client_id)
         except ValueError as error:
             return jsonify({
                 "status": "error",
