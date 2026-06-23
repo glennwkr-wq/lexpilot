@@ -169,7 +169,7 @@
           <div class="case-documents-block">
             <h4>Документы дела</h4>
 
-            <form class="case-document-upload-form" data-case-id="{{ case.id }}">
+<form class="case-document-upload-form" data-case-id="{{ case.id }}" method="post" enctype="multipart/form-data">
               <input type="file" name="file" accept=".pdf,.docx,.txt">
               <button type="submit">Прикрепить файл</button>
               <small class="case-document-status"></small>

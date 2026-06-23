@@ -15,12 +15,20 @@ const caseNextActionInput = document.getElementById("caseNextAction");
 const caseDescriptionInput = document.getElementById("caseDescription");
 
 function openCaseEditor() {
+  if (!caseEditor || !caseFormStatus) {
+    return;
+  }
+
   caseEditor.hidden = false;
   caseFormStatus.textContent = "";
   caseEditor.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 function closeCaseEditor() {
+  if (!caseEditor || !caseForm || !caseIdInput || !caseFormStatus) {
+    return;
+  }
+
   caseEditor.hidden = true;
   caseForm.reset();
   caseIdInput.value = "";
@@ -28,6 +36,10 @@ function closeCaseEditor() {
 }
 
 function fillCaseForm(card) {
+  if (!card) {
+    return;
+  }
+
   caseIdInput.value = card.dataset.caseId || "";
   caseTitleInput.value = card.dataset.title || "";
   caseClientIdInput.value = card.dataset.clientId || "";
@@ -52,52 +64,58 @@ function getCasePayload() {
   };
 }
 
-newCaseButton.addEventListener("click", () => {
-  closeCaseEditor();
-  openCaseEditor();
-});
+if (newCaseButton) {
+  newCaseButton.addEventListener("click", () => {
+    closeCaseEditor();
+    openCaseEditor();
+  });
+}
 
-cancelCaseButton.addEventListener("click", () => {
-  closeCaseEditor();
-});
+if (cancelCaseButton) {
+  cancelCaseButton.addEventListener("click", () => {
+    closeCaseEditor();
+  });
+}
 
-caseForm.addEventListener("submit", async (event) => {
-  event.preventDefault();
+if (caseForm) {
+  caseForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
 
-  const payload = getCasePayload();
+    const payload = getCasePayload();
 
-  if (!payload.title) {
-    caseFormStatus.textContent = "Название дела обязательно.";
-    return;
-  }
-
-  const caseId = caseIdInput.value;
-  const url = caseId ? `/api/cases/${caseId}` : "/api/cases";
-  const method = caseId ? "PUT" : "POST";
-
-  caseFormStatus.textContent = "Сохраняем дело...";
-
-  try {
-    const response = await fetch(url, {
-      method,
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    });
-
-    const data = await response.json();
-
-    if (!response.ok || data.status !== "ok") {
-      caseFormStatus.textContent = data.message || "Ошибка сохранения дела.";
+    if (!payload.title) {
+      caseFormStatus.textContent = "Название дела обязательно.";
       return;
     }
 
-    window.location.reload();
-  } catch (error) {
-    caseFormStatus.textContent = "Ошибка соединения с сервером.";
-  }
-});
+    const caseId = caseIdInput.value;
+    const url = caseId ? `/api/cases/${caseId}` : "/api/cases";
+    const method = caseId ? "PUT" : "POST";
+
+    caseFormStatus.textContent = "Сохраняем дело...";
+
+    try {
+      const response = await fetch(url, {
+        method,
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || data.status !== "ok") {
+        caseFormStatus.textContent = data.message || "Ошибка сохранения дела.";
+        return;
+      }
+
+      window.location.reload();
+    } catch (error) {
+      caseFormStatus.textContent = "Ошибка соединения с сервером.";
+    }
+  });
+}
 
 document.querySelectorAll(".edit-case-button").forEach((button) => {
   button.addEventListener("click", () => {
@@ -110,7 +128,7 @@ document.querySelectorAll(".edit-case-button").forEach((button) => {
 document.querySelectorAll(".delete-case-button").forEach((button) => {
   button.addEventListener("click", async () => {
     const card = button.closest(".case-card");
-    const caseId = card.dataset.caseId;
+    const caseId = card?.dataset.caseId;
 
     if (!caseId) {
       return;
@@ -156,12 +174,20 @@ const taskStatusInput = document.getElementById("taskStatus");
 const taskDescriptionInput = document.getElementById("taskDescription");
 
 function openTaskEditor() {
+  if (!taskEditor || !taskFormStatus) {
+    return;
+  }
+
   taskEditor.hidden = false;
   taskFormStatus.textContent = "";
   taskEditor.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 function closeTaskEditor() {
+  if (!taskEditor || !taskForm || !taskIdInput || !taskFormStatus) {
+    return;
+  }
+
   taskEditor.hidden = true;
   taskForm.reset();
   taskIdInput.value = "";
@@ -169,6 +195,10 @@ function closeTaskEditor() {
 }
 
 function fillTaskForm(card) {
+  if (!card) {
+    return;
+  }
+
   taskIdInput.value = card.dataset.taskId || "";
   taskTitleInput.value = card.dataset.title || "";
   taskCaseIdInput.value = card.dataset.caseId || "";
@@ -189,52 +219,58 @@ function getTaskPayload() {
   };
 }
 
-newTaskButton.addEventListener("click", () => {
-  closeTaskEditor();
-  openTaskEditor();
-});
+if (newTaskButton) {
+  newTaskButton.addEventListener("click", () => {
+    closeTaskEditor();
+    openTaskEditor();
+  });
+}
 
-cancelTaskButton.addEventListener("click", () => {
-  closeTaskEditor();
-});
+if (cancelTaskButton) {
+  cancelTaskButton.addEventListener("click", () => {
+    closeTaskEditor();
+  });
+}
 
-taskForm.addEventListener("submit", async (event) => {
-  event.preventDefault();
+if (taskForm) {
+  taskForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
 
-  const payload = getTaskPayload();
+    const payload = getTaskPayload();
 
-  if (!payload.title) {
-    taskFormStatus.textContent = "Название задачи обязательно.";
-    return;
-  }
-
-  const taskId = taskIdInput.value;
-  const url = taskId ? `/api/tasks/${taskId}` : "/api/tasks";
-  const method = taskId ? "PUT" : "POST";
-
-  taskFormStatus.textContent = "Сохраняем задачу...";
-
-  try {
-    const response = await fetch(url, {
-      method,
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    });
-
-    const data = await response.json();
-
-    if (!response.ok || data.status !== "ok") {
-      taskFormStatus.textContent = data.message || "Ошибка сохранения задачи.";
+    if (!payload.title) {
+      taskFormStatus.textContent = "Название задачи обязательно.";
       return;
     }
 
-    window.location.reload();
-  } catch (error) {
-    taskFormStatus.textContent = "Ошибка соединения с сервером.";
-  }
-});
+    const taskId = taskIdInput.value;
+    const url = taskId ? `/api/tasks/${taskId}` : "/api/tasks";
+    const method = taskId ? "PUT" : "POST";
+
+    taskFormStatus.textContent = "Сохраняем задачу...";
+
+    try {
+      const response = await fetch(url, {
+        method,
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || data.status !== "ok") {
+        taskFormStatus.textContent = data.message || "Ошибка сохранения задачи.";
+        return;
+      }
+
+      window.location.reload();
+    } catch (error) {
+      taskFormStatus.textContent = "Ошибка соединения с сервером.";
+    }
+  });
+}
 
 document.querySelectorAll(".edit-task-button").forEach((button) => {
   button.addEventListener("click", () => {
@@ -247,7 +283,7 @@ document.querySelectorAll(".edit-task-button").forEach((button) => {
 document.querySelectorAll(".delete-task-button").forEach((button) => {
   button.addEventListener("click", async () => {
     const card = button.closest(".task-card");
-    const taskId = card.dataset.taskId;
+    const taskId = card?.dataset.taskId;
 
     if (!taskId) {
       return;
@@ -319,7 +355,6 @@ if (workspaceTypeFilter) {
 if (workspaceStatusFilter) {
   workspaceStatusFilter.addEventListener("change", applyWorkspaceFilters);
 }
-
 
 document.querySelectorAll(".case-document-upload-form").forEach((form) => {
   form.addEventListener("submit", async (event) => {
