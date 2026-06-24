@@ -5,6 +5,53 @@ from app.core.config import settings
 
 client = OpenAI(api_key=settings.OPENAI_API_KEY)
 
+def generate_legal_search_queries(user_question: str) -> list[str]:
+    if not settings.OPENAI_API_KEY:
+        return [user_question]
+
+    prompt = f"""
+Преобразуй вопрос юриста в 3-5 поисковых запросов для поиска по корпусу нормативных правовых актов РФ.
+
+Правила:
+- не отвечай на вопрос;
+- не добавляй выводы;
+- верни только строки запросов, каждая с новой строки;
+- используй юридические термины, названия законов, возможные формулировки из НПА;
+- не выдумывай номера статей.
+
+Вопрос:
+{user_question}
+"""
+
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4.1-mini",
+            messages=[
+                {"role": "system", "content": "Ты помогаешь формировать поисковые запросы по российскому законодательству."},
+                {"role": "user", "content": prompt.strip()},
+            ],
+            temperature=0.1,
+        )
+    except Exception:
+        return [user_question]
+
+    content = response.choices[0].message.content or ""
+
+    queries = [
+        line.strip("-• \t")
+        for line in content.splitlines()
+        if line.strip("-• \t")
+    ]
+
+    queries.insert(0, user_question)
+
+    unique = []
+
+    for query in queries:
+        if query not in unique:
+            unique.append(query)
+
+    return unique[:6]
 
 def generate_legal_answer(
     user_question: str,

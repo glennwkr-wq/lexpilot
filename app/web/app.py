@@ -13,7 +13,11 @@ from app.services.federal_law.search import (
     build_federal_law_context,
 )
 from app.db.session import SessionLocal
-from app.providers.llm.openai import generate_legal_answer, analyze_legal_document
+from app.providers.llm.openai import (
+    generate_legal_answer,
+    generate_legal_search_queries,
+    analyze_legal_document,
+)
 from app.services.documents.builder import build_document_from_request
 from app.services.documents.export_docx import (
     DOCX_MIME_TYPE,
@@ -438,8 +442,14 @@ def create_app() -> Flask:
                 "message": "Question is required",
             }), 400
 
+        search_queries = generate_legal_search_queries(question)
+
         try:
-            federal_law_results = search_federal_law(question, limit=8)
+            federal_law_results = search_federal_law(
+                question,
+                limit=8,
+                expanded_queries=search_queries,
+            )
         except Exception as error:
             federal_law_results = []
             federal_search_error = str(error)
@@ -463,6 +473,7 @@ def create_app() -> Flask:
         return jsonify({
             "status": "ok",
             "question": question,
+            "search_queries": search_queries,
             "answer": answer,
             "federal_search_error": federal_search_error,
             "sources": [
