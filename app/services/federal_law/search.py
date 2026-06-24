@@ -21,10 +21,10 @@ def search_federal_law(
     for index, search_query in enumerate(queries):
         query_weight = 1.0 - min(index * 0.08, 0.35)
 
-        for item in _search_by_document_metadata(search_query, limit=8):
+        for item in _search_by_document_metadata(search_query, limit=10):
             _merge_result(collected, item, query_weight)
 
-        for item in _search_by_chunk_fts(search_query, limit=24):
+        for item in _search_by_chunk_fts(search_query, limit=30):
             _merge_result(collected, item, query_weight)
 
     results = list(collected.values())
@@ -82,29 +82,16 @@ def _search_by_document_metadata(query: str, limit: int) -> list[dict]:
             matched_documents AS (
                 SELECT
                     fld.id,
-                    ts_rank_cd(
-                        to_tsvector(
-                            'russian',
-                            coalesce(fld.title, '') || ' ' ||
-                            coalesce(fld.document_type, '') || ' ' ||
-                            coalesce(fld.authority, '') || ' ' ||
-                            coalesce(fld.document_number, '')
-                        ),
-                        search_query.query,
-                        32
-                    ) AS document_rank
+                    ts_rank_cd(fld.search_vector, search_query.query, 32) AS document_rank
                 FROM federal_law_documents fld
                 CROSS JOIN search_query
                 WHERE
                     search_query.query <> ''::tsquery
-                    AND to_tsvector(
-                        'russian',
-                        coalesce(fld.title, '') || ' ' ||
-                        coalesce(fld.document_type, '') || ' ' ||
-                        coalesce(fld.authority, '') || ' ' ||
-                        coalesce(fld.document_number, '')
-                    ) @@ search_query.query
-                ORDER BY document_rank DESC, fld.is_widely_used DESC
+                    AND fld.search_vector @@ search_query.query
+                ORDER BY
+                    document_rank DESC,
+                    fld.is_widely_used DESC,
+                    fld.id DESC
                 LIMIT :limit
             )
             SELECT
@@ -165,14 +152,7 @@ def _search_by_chunk_fts(query: str, limit: int) -> list[dict]:
                 fld.source_url,
                 'chunk_fts' AS search_method,
                 (
-                    ts_rank_cd(
-                        to_tsvector(
-                            'russian',
-                            coalesce(flc.title, '') || ' ' || coalesce(flc.content, '')
-                        ),
-                        search_query.query,
-                        32
-                    )
+                    ts_rank_cd(flc.search_vector, search_query.query, 32)
                     + CASE WHEN fld.is_widely_used THEN 0.12 ELSE 0 END
                 ) AS rank
             FROM federal_law_chunks flc
@@ -180,11 +160,11 @@ def _search_by_chunk_fts(query: str, limit: int) -> list[dict]:
             CROSS JOIN search_query
             WHERE
                 search_query.query <> ''::tsquery
-                AND to_tsvector(
-                    'russian',
-                    coalesce(flc.title, '') || ' ' || coalesce(flc.content, '')
-                ) @@ search_query.query
-            ORDER BY rank DESC, fld.is_widely_used DESC
+                AND flc.search_vector @@ search_query.query
+            ORDER BY
+                rank DESC,
+                fld.is_widely_used DESC,
+                flc.id DESC
             LIMIT :limit
         """), {
             "query": query,
