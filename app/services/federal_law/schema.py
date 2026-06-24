@@ -35,6 +35,16 @@ def ensure_federal_law_tables() -> None:
         """))
 
         session.execute(text("""
+            ALTER TABLE federal_law_documents
+            ADD COLUMN IF NOT EXISTS search_vector tsvector
+        """))
+
+        session.execute(text("""
+            ALTER TABLE federal_law_chunks
+            ADD COLUMN IF NOT EXISTS search_vector tsvector
+        """))
+
+        session.execute(text("""
             CREATE TABLE IF NOT EXISTS federal_law_import_runs (
                 id SERIAL PRIMARY KEY,
                 filename TEXT UNIQUE NOT NULL,
@@ -70,11 +80,23 @@ def ensure_federal_law_tables() -> None:
 def ensure_federal_law_search_indexes() -> None:
     with SessionLocal() as session:
         session.execute(text("""
-            CREATE INDEX IF NOT EXISTS idx_federal_law_chunks_fts
-            ON federal_law_chunks
-            USING GIN (
-                to_tsvector('russian', coalesce(title, '') || ' ' || coalesce(content, ''))
-            )
+            CREATE INDEX IF NOT EXISTS idx_federal_law_documents_search_vector
+            ON federal_law_documents USING GIN (search_vector)
+        """))
+
+        session.execute(text("""
+            CREATE INDEX IF NOT EXISTS idx_federal_law_chunks_search_vector
+            ON federal_law_chunks USING GIN (search_vector)
+        """))
+
+        session.execute(text("""
+            CREATE INDEX IF NOT EXISTS idx_federal_law_documents_type_status
+            ON federal_law_documents (document_type, status)
+        """))
+
+        session.execute(text("""
+            CREATE INDEX IF NOT EXISTS idx_federal_law_documents_number_date
+            ON federal_law_documents (document_number, document_date)
         """))
 
         session.commit()
