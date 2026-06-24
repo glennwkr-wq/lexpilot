@@ -12,3 +12,4 @@ psycopg[binary]
 pyarrow
 huggingface_hub
 tqdm
+numpy

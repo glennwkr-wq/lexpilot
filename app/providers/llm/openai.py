@@ -53,6 +53,102 @@ def generate_legal_search_queries(user_question: str) -> list[str]:
 
     return unique[:6]
 
+def generate_embedding(text_value: str) -> list[float]:
+    text_value = (text_value or "").strip()
+
+    if not text_value or not settings.OPENAI_API_KEY:
+        return []
+
+    response = client.embeddings.create(
+        model=settings.EMBEDDING_MODEL,
+        input=text_value[:8000],
+    )
+
+    return response.data[0].embedding
+
+
+def rerank_federal_sources(
+    user_question: str,
+    sources: list[dict],
+    limit: int = 8,
+) -> list[dict]:
+    if not sources or not settings.OPENAI_API_KEY:
+        return sources[:limit]
+
+    source_blocks = []
+
+    for index, item in enumerate(sources, start=1):
+        source_blocks.append(f"""
+[{index}]
+Название: {item.get("title")}
+Тип: {item.get("document_type")}
+Орган: {item.get("authority")}
+Дата: {item.get("document_date")}
+Номер: {item.get("document_number")}
+Статус: {item.get("status")}
+Метод поиска: {item.get("search_method")}
+Ранг: {item.get("rank")}
+
+Фрагмент:
+{(item.get("content") or "")[:1200]}
+""".strip())
+
+    prompt = f"""
+Ты юридический reranker для LexPilot.
+
+Твоя задача — выбрать наиболее релевантные источники для ответа юристу.
+
+Вопрос юриста:
+{user_question}
+
+Кандидаты:
+{chr(10).join(source_blocks)}
+
+Правила:
+1. Верни только номера источников через запятую.
+2. Выбирай основные нормативные акты выше документов о внесении изменений, проектов, распоряжений и технических постановлений.
+3. Если вопрос о конкретном законе, кодексе или процедуре, поднимай основной акт выше поправок к нему.
+4. Не выбирай источник только потому, что в нём много совпадающих слов.
+5. Максимум источников: {limit}.
+"""
+
+    try:
+        response = client.chat.completions.create(
+            model=settings.RERANK_MODEL,
+            messages=[
+                {"role": "system", "content": "Ты строго ранжируешь юридические источники по релевантности."},
+                {"role": "user", "content": prompt.strip()},
+            ],
+            temperature=0,
+        )
+    except Exception:
+        return sources[:limit]
+
+    content = response.choices[0].message.content or ""
+    selected_indexes = []
+
+    for part in content.replace("\n", ",").split(","):
+        part = part.strip()
+
+        if not part.isdigit():
+            continue
+
+        value = int(part)
+
+        if 1 <= value <= len(sources) and value not in selected_indexes:
+            selected_indexes.append(value)
+
+    reranked = [sources[index - 1] for index in selected_indexes]
+
+    for item in sources:
+        if len(reranked) >= limit:
+            break
+
+        if item not in reranked:
+            reranked.append(item)
+
+    return reranked[:limit]
+
 def generate_legal_answer(
     user_question: str,
     knowledge_context: str = "",

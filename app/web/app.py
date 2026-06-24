@@ -16,6 +16,8 @@ from app.db.session import SessionLocal
 from app.providers.llm.openai import (
     generate_legal_answer,
     generate_legal_search_queries,
+    generate_embedding,
+    rerank_federal_sources,
     analyze_legal_document,
 )
 from app.services.documents.builder import build_document_from_request
@@ -443,14 +445,23 @@ def create_app() -> Flask:
             }), 400
 
         search_queries = generate_legal_search_queries(question)
+        query_embedding = generate_embedding(" ".join(search_queries))
 
         try:
-            federal_law_results = search_federal_law(
+            federal_law_candidates = search_federal_law(
                 question,
-                limit=8,
+                limit=30,
                 expanded_queries=search_queries,
+                query_embedding=query_embedding,
+            )
+
+            federal_law_results = rerank_federal_sources(
+                user_question=question,
+                sources=federal_law_candidates,
+                limit=8,
             )
         except Exception as error:
+            federal_law_candidates = []
             federal_law_results = []
             federal_search_error = str(error)
         else:
@@ -476,6 +487,7 @@ def create_app() -> Flask:
             "search_queries": search_queries,
             "answer": answer,
             "federal_search_error": federal_search_error,
+            "federal_candidates_count": len(federal_law_candidates),
             "sources": [
                 {
                     "title": item.get("title"),

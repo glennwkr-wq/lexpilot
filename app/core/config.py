@@ -11,6 +11,8 @@ class Settings:
     DATABASE_URL: str = os.getenv("DATABASE_URL", "")
 
     OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
+    EMBEDDING_MODEL: str = os.getenv("EMBEDDING_MODEL", "text-embedding-3-small")
+    RERANK_MODEL: str = os.getenv("RERANK_MODEL", "gpt-4.1-mini")
 
     ADMIN_EMAIL: str = os.getenv("ADMIN_EMAIL", "admin@example.com")
     ADMIN_PASSWORD: str = os.getenv("ADMIN_PASSWORD", "admin123")

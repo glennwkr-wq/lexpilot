@@ -4,6 +4,8 @@ from app.db.session import SessionLocal
 
 def ensure_federal_law_tables() -> None:
     with SessionLocal() as session:
+        session.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+
         session.execute(text("""
             CREATE TABLE IF NOT EXISTS federal_law_documents (
                 id SERIAL PRIMARY KEY,
@@ -45,6 +47,31 @@ def ensure_federal_law_tables() -> None:
         """))
 
         session.execute(text("""
+            ALTER TABLE federal_law_chunks
+            ADD COLUMN IF NOT EXISTS embedding vector(1536)
+        """))
+
+        session.execute(text("""
+            ALTER TABLE federal_law_documents
+            ADD COLUMN IF NOT EXISTS is_base_law BOOLEAN NOT NULL DEFAULT FALSE
+        """))
+
+        session.execute(text("""
+            ALTER TABLE federal_law_documents
+            ADD COLUMN IF NOT EXISTS is_change_law BOOLEAN NOT NULL DEFAULT FALSE
+        """))
+
+        session.execute(text("""
+            ALTER TABLE federal_law_documents
+            ADD COLUMN IF NOT EXISTS is_project_law BOOLEAN NOT NULL DEFAULT FALSE
+        """))
+
+        session.execute(text("""
+            ALTER TABLE federal_law_documents
+            ADD COLUMN IF NOT EXISTS legal_rank NUMERIC NOT NULL DEFAULT 0
+        """))
+
+        session.execute(text("""
             CREATE TABLE IF NOT EXISTS federal_law_import_runs (
                 id SERIAL PRIMARY KEY,
                 filename TEXT UNIQUE NOT NULL,
@@ -59,6 +86,11 @@ def ensure_federal_law_tables() -> None:
             )
         """))
 
+        session.commit()
+
+
+def ensure_federal_law_search_indexes() -> None:
+    with SessionLocal() as session:
         session.execute(text("""
             CREATE INDEX IF NOT EXISTS idx_federal_law_documents_external_id
             ON federal_law_documents (external_id)
@@ -70,15 +102,25 @@ def ensure_federal_law_tables() -> None:
         """))
 
         session.execute(text("""
+            CREATE INDEX IF NOT EXISTS idx_federal_law_documents_type_status
+            ON federal_law_documents (document_type, status)
+        """))
+
+        session.execute(text("""
+            CREATE INDEX IF NOT EXISTS idx_federal_law_documents_number_date
+            ON federal_law_documents (document_number, document_date)
+        """))
+
+        session.execute(text("""
+            CREATE INDEX IF NOT EXISTS idx_federal_law_documents_legal_rank
+            ON federal_law_documents (legal_rank DESC)
+        """))
+
+        session.execute(text("""
             CREATE INDEX IF NOT EXISTS idx_federal_law_chunks_document_id
             ON federal_law_chunks (document_id)
         """))
 
-        session.commit()
-
-
-def ensure_federal_law_search_indexes() -> None:
-    with SessionLocal() as session:
         session.execute(text("""
             CREATE INDEX IF NOT EXISTS idx_federal_law_documents_search_vector
             ON federal_law_documents USING GIN (search_vector)
@@ -87,16 +129,6 @@ def ensure_federal_law_search_indexes() -> None:
         session.execute(text("""
             CREATE INDEX IF NOT EXISTS idx_federal_law_chunks_search_vector
             ON federal_law_chunks USING GIN (search_vector)
-        """))
-
-        session.execute(text("""
-            CREATE INDEX IF NOT EXISTS idx_federal_law_documents_type_status
-            ON federal_law_documents (document_type, status)
-        """))
-
-        session.execute(text("""
-            CREATE INDEX IF NOT EXISTS idx_federal_law_documents_number_date
-            ON federal_law_documents (document_number, document_date)
         """))
 
         session.commit()
