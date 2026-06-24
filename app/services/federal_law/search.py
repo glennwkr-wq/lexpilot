@@ -24,8 +24,23 @@ def search_federal_law(
         for item in _search_by_document_metadata(search_query, limit=10):
             _merge_result(collected, item, query_weight)
 
-        for item in _search_by_chunk_fts(search_query, limit=30):
-            _merge_result(collected, item, query_weight)
+        if len(collected) >= limit:
+            break
+
+    if len(collected) < limit:
+        for index, search_query in enumerate(queries[:3]):
+            query_weight = 1.0 - min(index * 0.08, 0.35)
+
+            try:
+                chunk_results = _search_by_chunk_fts(search_query, limit=12)
+            except Exception:
+                chunk_results = []
+
+            for item in chunk_results:
+                _merge_result(collected, item, query_weight)
+
+            if len(collected) >= limit:
+                break
 
     results = list(collected.values())
 
@@ -132,7 +147,7 @@ def _search_by_chunk_fts(query: str, limit: int) -> list[dict]:
         return []
 
     with SessionLocal() as session:
-        session.execute(text("SET LOCAL statement_timeout = '9000ms'"))
+        session.execute(text("SET LOCAL statement_timeout = '4000ms'"))
 
         rows = session.execute(text("""
             WITH search_query AS (
@@ -176,17 +191,18 @@ def _search_by_chunk_fts(query: str, limit: int) -> list[dict]:
 
 def _merge_result(collected: dict, item: dict, query_weight: float) -> None:
     chunk_id = item.get("chunk_id")
+    document_key = item.get("source_url") or item.get("title") or chunk_id
 
-    if not chunk_id:
+    if not document_key:
         return
 
     item = dict(item)
     item["rank"] = float(item.get("rank") or 0) * query_weight
 
-    existing = collected.get(chunk_id)
+    existing = collected.get(document_key)
 
     if not existing or item["rank"] > float(existing.get("rank") or 0):
-        collected[chunk_id] = item
+        collected[document_key] = item
 
 
 def _build_query_list(query: str, expanded_queries: list[str] | None) -> list[str]:
