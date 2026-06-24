@@ -12,17 +12,44 @@ function setLoading(isLoading) {
 
 function renderSources(sources) {
   if (!sources || sources.length === 0) {
-    sourcesBox.innerHTML = "<p>Релевантные источники в базе знаний не найдены.</p>";
+    sourcesBox.innerHTML = "<p>Релевантные федеральные источники не найдены.</p>";
     return;
   }
 
   sourcesBox.innerHTML = sources
     .map((source, index) => {
+      const groupLabel =
+        source.source_group === "federal_law"
+          ? "Федеральный корпус RusLawOD"
+          : "Локальная база LexPilot";
+
+      const numberText = source.document_number
+        ? `№ ${escapeHtml(source.document_number)}`
+        : "номер не указан";
+
+      const dateText = source.document_date
+        ? escapeHtml(source.document_date)
+        : "дата не указана";
+
+      const authorityText = source.authority
+        ? escapeHtml(source.authority)
+        : "орган не указан";
+
+      const statusText = source.status
+        ? escapeHtml(source.status)
+        : "статус не указан";
+
+      const rankText = source.rank
+        ? ` · релевантность ${Number(source.rank).toFixed(4)}`
+        : "";
+
       return `
         <div class="source-item">
-          <strong>${index + 1}. ${source.title || "Без названия"}</strong>
-          <span>${source.document_type || "unknown"}</span>
-          <small>${source.source_url || ""}</small>
+          <strong>${index + 1}. ${escapeHtml(source.title || "Без названия")}</strong>
+          <span>${escapeHtml(source.document_type || "тип не указан")} · ${numberText} · ${dateText}</span>
+          <small>${authorityText}</small>
+          <small>${statusText} · ${groupLabel}${rankText}</small>
+          <small>${escapeHtml(source.source_url || "")}</small>
         </div>
       `;
     })
@@ -70,3 +97,12 @@ askButton.addEventListener("click", async () => {
     setLoading(false);
   }
 });
+
+function escapeHtml(value) {
+  return String(value || "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}

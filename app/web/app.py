@@ -7,6 +7,7 @@ from app.services.knowledge.manual import (
     add_manual_knowledge_document,
 )
 from app.services.knowledge.search import search_knowledge, build_knowledge_context
+from app.services.federal_law.schema import ensure_federal_law_search_indexes
 from app.services.federal_law.search import (
     search_federal_law,
     build_federal_law_context,
@@ -362,6 +363,70 @@ def create_app() -> Flask:
         result = ingest_knowledge_base()
         return jsonify(result)
 
+    @app.get("/admin/federal-law-index")
+    def admin_federal_law_index():
+        token = request.args.get("token")
+
+        if token != settings.INIT_DB_TOKEN:
+            return jsonify({"status": "error", "message": "Forbidden"}), 403
+
+        ensure_federal_law_search_indexes()
+
+        return jsonify({
+            "status": "ok",
+            "message": "Federal law search indexes ensured.",
+        })
+
+
+    @app.get("/admin/cleanup-local-knowledge")
+    def admin_cleanup_local_knowledge():
+        token = request.args.get("token")
+
+        if token != settings.INIT_DB_TOKEN:
+            return jsonify({"status": "error", "message": "Forbidden"}), 403
+
+        keep_types = [
+            "00_system_rules",
+            "01_scenarios",
+            "02_document_templates",
+            "03_checklists",
+            "05_legal_style",
+            "11_template_blueprints",
+            "12_intake_forms",
+            "13_anonymization_rules",
+            "document_template",
+            "checklist",
+            "real_example",
+        ]
+
+        with SessionLocal() as session:
+            delete_chunks_result = session.execute(text("""
+                DELETE FROM knowledge_chunks
+                WHERE document_id IN (
+                    SELECT id
+                    FROM legal_documents
+                    WHERE document_type NOT IN :keep_types
+                )
+            """), {
+                "keep_types": tuple(keep_types),
+            })
+
+            delete_documents_result = session.execute(text("""
+                DELETE FROM legal_documents
+                WHERE document_type NOT IN :keep_types
+            """), {
+                "keep_types": tuple(keep_types),
+            })
+
+            session.commit()
+
+        return jsonify({
+            "status": "ok",
+            "deleted_chunks": delete_chunks_result.rowcount,
+            "deleted_documents": delete_documents_result.rowcount,
+            "kept_types": keep_types,
+        })
+
     @app.post("/api/ask")
     def api_ask():
         data = request.get_json(silent=True) or {}
@@ -373,18 +438,21 @@ def create_app() -> Flask:
                 "message": "Question is required",
             }), 400
 
-        knowledge_results = search_knowledge(question, limit=4)
-
         try:
-            federal_law_results = search_federal_law(question, limit=6)
-        except Exception:
+            federal_law_results = search_federal_law(question, limit=8)
+        except Exception as error:
             federal_law_results = []
+            federal_search_error = str(error)
+        else:
+            federal_search_error = ""
 
-        local_context = build_knowledge_context(knowledge_results)
+        knowledge_results = []
+
         federal_context = build_federal_law_context(federal_law_results)
+        local_context = build_knowledge_context(knowledge_results)
 
         knowledge_context = "\n\n".join(
-            block for block in [local_context, federal_context] if block
+            block for block in [federal_context, local_context] if block
         )
 
         answer = generate_legal_answer(
@@ -396,19 +464,17 @@ def create_app() -> Flask:
             "status": "ok",
             "question": question,
             "answer": answer,
+            "federal_search_error": federal_search_error,
             "sources": [
                 {
-                    "title": item["title"],
-                    "document_type": item["document_type"],
-                    "source_url": item["source_url"],
-                    "source_group": "local_knowledge",
-                }
-                for item in knowledge_results
-            ] + [
-                {
-                    "title": item["title"],
-                    "document_type": item["document_type"],
-                    "source_url": item["source_url"],
+                    "title": item.get("title"),
+                    "document_type": item.get("document_type"),
+                    "authority": item.get("authority"),
+                    "document_number": item.get("document_number"),
+                    "document_date": item.get("document_date"),
+                    "status": item.get("status"),
+                    "source_url": item.get("source_url"),
+                    "rank": float(item.get("rank") or 0),
                     "source_group": "federal_law",
                 }
                 for item in federal_law_results
