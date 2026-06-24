@@ -1,7 +1,6 @@
 from sqlalchemy import text
 
 from app.db.session import SessionLocal
-from app.services.federal_law.schema import ensure_federal_law_tables
 
 
 def search_federal_law(query: str, limit: int = 8) -> list[dict]:
@@ -10,10 +9,15 @@ def search_federal_law(query: str, limit: int = 8) -> list[dict]:
     if not query:
         return []
 
-    ensure_federal_law_tables()
+    limit = max(1, min(int(limit), 12))
 
     with SessionLocal() as session:
+        session.execute(text("SET LOCAL statement_timeout = '8000ms'"))
+
         rows = session.execute(text("""
+            WITH search_query AS (
+                SELECT websearch_to_tsquery('russian', :query) AS query
+            )
             SELECT
                 flc.id AS chunk_id,
                 flc.content,
@@ -23,24 +27,36 @@ def search_federal_law(query: str, limit: int = 8) -> list[dict]:
                 fld.document_number,
                 fld.document_date,
                 fld.status,
+                fld.is_widely_used,
                 fld.source,
                 fld.source_url,
-                ts_rank(
-                    to_tsvector('russian', coalesce(flc.title, '') || ' ' || coalesce(flc.content, '')),
-                    plainto_tsquery('russian', :query)
+                (
+                    ts_rank_cd(
+                        to_tsvector(
+                            'russian',
+                            coalesce(flc.title, '') || ' ' || coalesce(flc.content, '')
+                        ),
+                        search_query.query,
+                        32
+                    )
+                    + CASE WHEN fld.is_widely_used THEN 0.08 ELSE 0 END
                 ) AS rank
             FROM federal_law_chunks flc
             JOIN federal_law_documents fld ON fld.id = flc.document_id
+            CROSS JOIN search_query
             WHERE
-                to_tsvector('russian', coalesce(flc.title, '') || ' ' || coalesce(flc.content, ''))
-                @@ plainto_tsquery('russian', :query)
+                search_query.query <> ''::tsquery
+                AND to_tsvector(
+                    'russian',
+                    coalesce(flc.title, '') || ' ' || coalesce(flc.content, '')
+                ) @@ search_query.query
             ORDER BY
-                fld.is_widely_used DESC,
                 rank DESC,
+                fld.is_widely_used DESC,
                 flc.id DESC
             LIMIT :limit
         """), {
-            "query": query,
+            "query": _prepare_search_query(query),
             "limit": limit,
         }).mappings().fetchall()
 
@@ -63,9 +79,19 @@ def build_federal_law_context(results: list[dict]) -> str:
 Номер: {item.get("document_number") or "Не указан"}
 Статус в корпусе: {item.get("status") or "Не указан"}
 Источник: {item.get("source_url")}
+Ранг поиска: {round(float(item.get("rank") or 0), 4)}
 
 Фрагмент:
 {item.get("content")}
 """.strip())
 
     return "\n\n---\n\n".join(blocks)
+
+
+def _prepare_search_query(query: str) -> str:
+    cleaned = " ".join(query.replace("\n", " ").split())
+
+    if len(cleaned) > 500:
+        cleaned = cleaned[:500]
+
+    return cleaned

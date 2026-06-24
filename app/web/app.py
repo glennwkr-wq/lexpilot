@@ -374,7 +374,11 @@ def create_app() -> Flask:
             }), 400
 
         knowledge_results = search_knowledge(question, limit=4)
-        federal_law_results = search_federal_law(question, limit=8)
+
+        try:
+            federal_law_results = search_federal_law(question, limit=6)
+        except Exception:
+            federal_law_results = []
 
         local_context = build_knowledge_context(knowledge_results)
         federal_context = build_federal_law_context(federal_law_results)
