@@ -40,7 +40,17 @@ def search_federal_law(
         for item in _fallback_global_chunk_search(queries[:3], limit=40):
             _merge_result(collected, item)
 
-    results = list(collected.values())
+    results = []
+
+    for item in collected.values():
+        item = dict(item)
+        item["rank"] = _apply_query_aware_rank(
+            user_query=query,
+            item=item,
+            current_rank=float(item.get("rank") or 0),
+        )
+        results.append(item)
+
     results.sort(key=lambda item: float(item.get("rank") or 0), reverse=True)
 
     return results[:limit]
@@ -136,6 +146,9 @@ def _search_documents(query: str, limit: int) -> list[dict]:
                         ELSE 0
                       END
                     - LEAST(length(fld.title)::float / 8000.0, 0.40)
+                    + CASE WHEN fld.is_base_law THEN 0.80 ELSE 0 END
+                    - CASE WHEN fld.is_change_law THEN 1.50 ELSE 0 END
+                    - CASE WHEN fld.is_project_law THEN 2.50 ELSE 0 END
                 ) AS rank
             FROM federal_law_documents fld
             CROSS JOIN search_query
@@ -427,6 +440,249 @@ def _search_global_chunks(query: str, limit: int) -> list[dict]:
 
     return [dict(row) for row in rows]
 
+def _apply_query_aware_rank(
+    user_query: str,
+    item: dict,
+    current_rank: float,
+) -> float:
+    query = _normalize_text(user_query)
+
+    title = _normalize_text(item.get("title"))
+    document_type = _normalize_text(item.get("document_type"))
+    number = _normalize_text(item.get("document_number"))
+    status = _normalize_text(item.get("status"))
+    authority = _normalize_text(item.get("authority"))
+
+    rank = float(current_rank or 0)
+
+    rank += _primary_source_boost(
+        query=query,
+        title=title,
+        document_type=document_type,
+        number=number,
+    )
+
+    rank += _document_quality_boost(
+        title=title,
+        document_type=document_type,
+        number=number,
+        status=status,
+        authority=authority,
+        is_base_law=bool(item.get("is_base_law")),
+        is_change_law=bool(item.get("is_change_law")),
+        is_project_law=bool(item.get("is_project_law")),
+    )
+
+    return rank
+
+
+def _primary_source_boost(
+    query: str,
+    title: str,
+    document_type: str,
+    number: str,
+) -> float:
+    boost = 0.0
+
+    is_code = "кодекс" in document_type or "кодекс" in title
+
+    if _has_any(query, [
+        "договор",
+        "подряд",
+        "неустойк",
+        "незаключ",
+        "убыт",
+        "обязательств",
+        "исполнени",
+        "займ",
+        "оказани услуг",
+        "односторонний отказ",
+        "заказчик",
+        "подрядчик",
+    ]):
+        if "гражданский кодекс российской федерации" in title:
+            boost += 9.0
+        elif is_code and "гражданский" in title:
+            boost += 6.0
+
+    if _has_any(query, [
+        "банкрот",
+        "несостоятельн",
+        "субсидиарн",
+        "контролирующ",
+        "должник",
+        "кредитор",
+        "финансовый управляющий",
+        "арбитражный управляющий",
+        "оспаривание сдел",
+        "очередность удовлетворения",
+    ]):
+        if "127-фз" in number and "несостоятельности" in title:
+            boost += 10.0
+        elif "о несостоятельности" in title and "банкротстве" in title:
+            boost += 9.0
+
+        if "154-фз" in number and ("крым" in title or "севастопол" in title):
+            boost -= 7.0
+
+    if _has_any(query, [
+        "гпк",
+        "гражданск процесс",
+        "кассацион",
+        "апелляцион",
+        "исковое заявление",
+        "оставление искового заявления",
+        "восстановление срока",
+        "процессуальн",
+    ]):
+        if "гражданский процессуальный кодекс российской федерации" in title:
+            boost += 10.0
+        elif is_code and "процессуальный" in title:
+            boost += 7.0
+
+    if _has_any(query, [
+        "труд",
+        "увольнен",
+        "работник",
+        "работодатель",
+        "заработн",
+        "прогул",
+        "сокращени",
+        "восстановление на работе",
+    ]):
+        if "трудовой кодекс российской федерации" in title:
+            boost += 9.0
+
+    if _has_any(query, [
+        "супруг",
+        "алименты",
+        "ребен",
+        "ребён",
+        "развод",
+        "брак",
+        "раздел имущества",
+        "место жительства ребенка",
+        "место жительства ребёнка",
+    ]):
+        if "семейный кодекс российской федерации" in title:
+            boost += 9.0
+
+    if _has_any(query, [
+        "апк",
+        "арбитражн процесс",
+        "арбитражный суд",
+    ]):
+        if "арбитражный процессуальный кодекс российской федерации" in title:
+            boost += 9.0
+
+    if _has_any(query, [
+        "коап",
+        "административн правонаруш",
+        "административная ответственность",
+    ]):
+        if "кодекс российской федерации об административных правонарушениях" in title:
+            boost += 9.0
+
+    if _has_any(query, [
+        "ук",
+        "уголовн",
+        "преступлен",
+        "наказани",
+    ]):
+        if "уголовный кодекс российской федерации" in title:
+            boost += 9.0
+
+    if _has_any(query, [
+        "упк",
+        "уголовн процесс",
+        "следователь",
+        "дознание",
+        "обвиняем",
+        "подозреваем",
+    ]):
+        if "уголовно-процессуальный кодекс российской федерации" in title:
+            boost += 9.0
+
+    if _has_any(query, [
+        "налог",
+        "ндфл",
+        "ндс",
+        "налоговая",
+        "налоговый",
+    ]):
+        if "налоговый кодекс российской федерации" in title:
+            boost += 9.0
+
+    return boost
+
+
+def _document_quality_boost(
+    title: str,
+    document_type: str,
+    number: str,
+    status: str,
+    authority: str,
+    is_base_law: bool,
+    is_change_law: bool,
+    is_project_law: bool,
+) -> float:
+    boost = 0.0
+
+    if is_base_law:
+        boost += 1.5
+
+    if "действует" in status:
+        boost += 1.0
+
+    if "кодекс" in document_type or "кодекс" in title:
+        boost += 1.2
+
+    if number:
+        boost += 0.2
+
+    if is_change_law:
+        boost -= 3.5
+
+    if is_project_law:
+        boost -= 5.0
+
+    if _has_any(title, [
+        "о внесении изменений",
+        "о внесении изменения",
+        "о признании утратившими силу",
+        "о признании утратившим силу",
+        "о проекте федерального закона",
+        "проект федерального закона",
+        "о федеральном законе",
+    ]):
+        boost -= 4.0
+
+    if _has_any(title, [
+        "рсфср",
+        "ссср",
+        "совета министров",
+        "верховного совета",
+    ]):
+        boost -= 4.5
+
+    if _has_any(title, [
+        "крым",
+        "севастопол",
+    ]):
+        boost -= 1.0
+
+    if "конституционный суд" in authority:
+        boost -= 0.4
+
+    return boost
+
+
+def _has_any(text_value: str, needles: list[str]) -> bool:
+    return any(needle in text_value for needle in needles)
+
+
+def _normalize_text(value: object) -> str:
+    return " ".join(str(value or "").lower().replace("ё", "е").split())
 
 def _merge_result(collected: dict, item: dict) -> None:
     document_key = _build_document_key(item)

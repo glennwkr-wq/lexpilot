@@ -16,7 +16,6 @@ from app.db.session import SessionLocal
 from app.providers.llm.openai import (
     generate_legal_answer,
     generate_legal_search_queries,
-    generate_embedding,
     rerank_federal_sources,
     analyze_legal_document,
 )
@@ -445,7 +444,11 @@ def create_app() -> Flask:
             }), 400
 
         search_queries = generate_legal_search_queries(question)
-        query_embedding = generate_embedding(" ".join(search_queries))
+
+        # Embeddings пока сознательно отключены:
+        # база RusLawOD уже около 11 ГБ, полный vector layer может сильно раздуть Neon.
+        # Когда решим индексировать хотя бы базовые акты, здесь можно вернуть generate_embedding().
+        query_embedding = []
 
         try:
             federal_law_candidates = search_federal_law(
