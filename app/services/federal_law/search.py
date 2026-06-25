@@ -5,7 +5,7 @@ from app.db.session import SessionLocal
 
 def search_federal_law(
     query: str,
-    limit: int = 8,
+    limit: int = 5,
     expanded_queries: list[str] | None = None,
     query_embedding: list[float] | None = None,
 ) -> list[dict]:
@@ -76,7 +76,7 @@ def build_federal_law_context(results: list[dict]) -> str:
 Ранг поиска: {round(float(item.get("rank") or 0), 4)}
 
 Фрагмент:
-{item.get("content")}
+{(item.get("content") or "")[:2000]}
 """.strip())
 
     return "\n\n---\n\n".join(blocks)

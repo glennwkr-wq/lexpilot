@@ -8,7 +8,7 @@ RRF_K = 60
 
 def search_core_law(
     query: str,
-    limit: int = 8,
+    limit: int = 5,
     expanded_queries: list[str] | None = None,
     query_embedding: list[float] | None = None,
 ) -> list[dict]:
