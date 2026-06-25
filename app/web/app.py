@@ -8,6 +8,13 @@ from app.services.knowledge.manual import (
 )
 from app.services.knowledge.search import search_knowledge, build_knowledge_context
 from app.services.federal_law.schema import ensure_federal_law_search_indexes
+from app.services.core_law.schema import ensure_core_law_indexes
+from app.services.core_law.import_codexes import import_core_law_articles
+from app.services.core_law.search import (
+    search_core_law,
+    build_core_law_context,
+    is_core_law_sufficient,
+)
 from app.services.federal_law.search import (
     search_federal_law,
     build_federal_law_context,
@@ -382,6 +389,30 @@ def create_app() -> Flask:
             "message": "Federal law search indexes ensured.",
         })
 
+    @app.get("/admin/core-law-import")
+    def admin_core_law_import():
+        token = request.args.get("token")
+
+        if token != settings.INIT_DB_TOKEN:
+            return jsonify({"status": "error", "message": "Forbidden"}), 403
+
+        result = import_core_law_articles()
+        return jsonify(result)
+
+
+    @app.get("/admin/core-law-index")
+    def admin_core_law_index():
+        token = request.args.get("token")
+
+        if token != settings.INIT_DB_TOKEN:
+            return jsonify({"status": "error", "message": "Forbidden"}), 403
+
+        ensure_core_law_indexes()
+
+        return jsonify({
+            "status": "ok",
+            "message": "Core law search indexes ensured.",
+        })
 
     @app.get("/admin/cleanup-local-knowledge")
     def admin_cleanup_local_knowledge():
@@ -445,38 +476,58 @@ def create_app() -> Flask:
 
         search_queries = generate_legal_search_queries(question)
 
-        # Embeddings пока сознательно отключены:
-        # база RusLawOD уже около 11 ГБ, полный vector layer может сильно раздуть Neon.
-        # Когда решим индексировать хотя бы базовые акты, здесь можно вернуть generate_embedding().
-        query_embedding = []
+        core_law_results = []
+        federal_law_candidates = []
+        federal_law_results = []
+        federal_search_error = ""
+        search_route = "core_law"
 
         try:
-            federal_law_candidates = search_federal_law(
+            core_law_candidates = search_core_law(
                 question,
-                limit=30,
+                limit=12,
                 expanded_queries=search_queries,
-                query_embedding=query_embedding,
             )
 
-            federal_law_results = rerank_federal_sources(
-                user_question=question,
-                sources=federal_law_candidates,
-                limit=8,
-            )
+            if is_core_law_sufficient(core_law_candidates):
+                core_law_results = core_law_candidates[:8]
+                search_route = "core_law_only"
+            else:
+                search_route = "core_law_then_federal_law"
+
+                federal_law_candidates = search_federal_law(
+                    question,
+                    limit=30,
+                    expanded_queries=search_queries,
+                    query_embedding=[],
+                )
+
+                combined_candidates = []
+
+                for item in core_law_candidates[:5]:
+                    combined_candidates.append(item)
+
+                for item in federal_law_candidates:
+                    combined_candidates.append(item)
+
+                federal_law_results = rerank_federal_sources(
+                    user_question=question,
+                    sources=combined_candidates,
+                    limit=8,
+                )
+
         except Exception as error:
+            core_law_results = []
             federal_law_candidates = []
             federal_law_results = []
             federal_search_error = str(error)
-        else:
-            federal_search_error = ""
 
-        knowledge_results = []
-
+        core_context = build_core_law_context(core_law_results)
         federal_context = build_federal_law_context(federal_law_results)
-        local_context = build_knowledge_context(knowledge_results)
+        local_context = build_knowledge_context([])
 
         knowledge_context = "\n\n".join(
-            block for block in [federal_context, local_context] if block
+            block for block in [core_context, federal_context, local_context] if block
         )
 
         answer = generate_legal_answer(
@@ -484,27 +535,46 @@ def create_app() -> Flask:
             knowledge_context=knowledge_context,
         )
 
+        all_sources = []
+
+        for item in core_law_results:
+            all_sources.append({
+                "title": item.get("codex"),
+                "document_type": "Статья кодекса",
+                "authority": item.get("codex"),
+                "document_number": item.get("article_num"),
+                "document_date": None,
+                "status": "Актуальность требует проверки по официальному источнику",
+                "source_url": item.get("source_url") or item.get("url"),
+                "rank": float(item.get("rank") or 0),
+                "source_group": "core_law",
+                "article_title": item.get("article_title"),
+                "chapter": item.get("chapter"),
+            })
+
+        for item in federal_law_results:
+            all_sources.append({
+                "title": item.get("title"),
+                "document_type": item.get("document_type"),
+                "authority": item.get("authority"),
+                "document_number": item.get("document_number"),
+                "document_date": item.get("document_date"),
+                "status": item.get("status"),
+                "source_url": item.get("source_url"),
+                "rank": float(item.get("rank") or 0),
+                "source_group": item.get("source_group") or "federal_law",
+            })
+
         return jsonify({
             "status": "ok",
             "question": question,
             "search_queries": search_queries,
+            "search_route": search_route,
             "answer": answer,
             "federal_search_error": federal_search_error,
+            "core_law_count": len(core_law_results),
             "federal_candidates_count": len(federal_law_candidates),
-            "sources": [
-                {
-                    "title": item.get("title"),
-                    "document_type": item.get("document_type"),
-                    "authority": item.get("authority"),
-                    "document_number": item.get("document_number"),
-                    "document_date": item.get("document_date"),
-                    "status": item.get("status"),
-                    "source_url": item.get("source_url"),
-                    "rank": float(item.get("rank") or 0),
-                    "source_group": "federal_law",
-                }
-                for item in federal_law_results
-            ],
+            "sources": all_sources,
         })
 
     @app.post("/api/document-builder")
