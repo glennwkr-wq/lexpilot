@@ -134,6 +134,7 @@ def _search_documents(query: str, limit: int) -> list[dict]:
                 fld.is_change_law,
                 fld.is_project_law,
                 fld.legal_rank,
+                fld.law_role,
                 fld.source,
                 fld.source_url,
                 'document_fts' AS search_method,
@@ -251,6 +252,7 @@ def _search_chunks_by_document_ids(
                 fld.is_change_law,
                 fld.is_project_law,
                 fld.legal_rank,
+                fld.law_role,
                 fld.source,
                 fld.source_url,
                 'document_then_chunk_fts' AS search_method,
@@ -312,6 +314,7 @@ def _search_vector_chunks(
                     fld.is_change_law,
                     fld.is_project_law,
                     fld.legal_rank,
+                    fld.law_role,
                     fld.source,
                     fld.source_url,
                     'vector_inside_documents' AS search_method,
@@ -348,6 +351,7 @@ def _search_vector_chunks(
                     fld.is_change_law,
                     fld.is_project_law,
                     fld.legal_rank,
+                    fld.law_role,
                     fld.source,
                     fld.source_url,
                     'vector_global' AS search_method,
@@ -418,6 +422,7 @@ def _search_global_chunks(query: str, limit: int) -> list[dict]:
                 fld.is_change_law,
                 fld.is_project_law,
                 fld.legal_rank,
+                fld.law_role,
                 fld.source,
                 fld.source_url,
                 'global_chunk_fts' AS search_method,
@@ -468,6 +473,7 @@ def _apply_query_aware_rank(
         number=number,
         status=status,
         authority=authority,
+        law_role=item.get("law_role"),
         is_base_law=bool(item.get("is_base_law")),
         is_change_law=bool(item.get("is_change_law")),
         is_project_law=bool(item.get("is_project_law")),
@@ -622,11 +628,28 @@ def _document_quality_boost(
     number: str,
     status: str,
     authority: str,
+    law_role: str | None,
     is_base_law: bool,
     is_change_law: bool,
     is_project_law: bool,
 ) -> float:
     boost = 0.0
+
+    law_role = (law_role or "").upper()
+
+    ROLE_BONUS = {
+        "CODE": 7.0,
+        "PRIMARY": 5.5,
+        "IMPLEMENTING": 2.5,
+        "OTHER": 0.0,
+        "EXECUTION": -2.5,
+        "BUDGET": -4.0,
+        "AMENDMENT": -8.0,
+        "PROJECT": -12.0,
+        "HISTORICAL": -15.0,
+    }
+
+    boost += ROLE_BONUS.get(law_role, 0.0)
 
     if is_base_law:
         boost += 1.5
