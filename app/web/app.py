@@ -24,6 +24,7 @@ from app.providers.llm.openai import (
     generate_legal_answer,
     generate_legal_search_queries,
     generate_embedding,
+    rerank_core_law_sources,
     rerank_federal_sources,
     analyze_legal_document,
 )
@@ -496,8 +497,14 @@ def create_app() -> Flask:
                 query_embedding=core_query_embedding,
             )
 
-            if is_core_law_sufficient(core_law_candidates):
-                core_law_results = core_law_candidates[:8]
+            core_law_reranked = rerank_core_law_sources(
+                user_question=question,
+                sources=core_law_candidates[:20],
+                limit=8,
+            )
+
+            if is_core_law_sufficient(core_law_reranked):
+                core_law_results = core_law_reranked[:8]
                 search_route = "core_law_only"
             else:
                 search_route = "core_law_then_federal_law"
@@ -511,7 +518,7 @@ def create_app() -> Flask:
 
                 combined_candidates = []
 
-                for item in core_law_candidates[:5]:
+                for item in core_law_reranked[:5]:
                     combined_candidates.append(item)
 
                 for item in federal_law_candidates:

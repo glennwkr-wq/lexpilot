@@ -161,6 +161,90 @@ def rerank_federal_sources(
 
     return reranked[:limit]
 
+def rerank_core_law_sources(
+    user_question: str,
+    sources: list[dict],
+    limit: int = 8,
+) -> list[dict]:
+    if not sources or not settings.OPENAI_API_KEY:
+        return sources[:limit]
+
+    source_blocks = []
+
+    for index, item in enumerate(sources, start=1):
+        source_blocks.append(f"""
+[{index}]
+Кодекс: {item.get("codex")}
+Статья: {item.get("article_num")}
+Название статьи: {item.get("article_title")}
+Глава: {item.get("chapter")}
+Метод поиска: {item.get("search_method")}
+Ранг: {item.get("rank")}
+
+Текст:
+{(item.get("content") or "")[:1000]}
+""".strip())
+
+    prompt = f"""
+Ты юридический reranker для поиска по статьям кодексов РФ.
+
+Вопрос юриста:
+{user_question}
+
+Кандидаты:
+{chr(10).join(source_blocks)}
+
+Правила:
+1. Верни только номера источников через запятую.
+2. Выбирай статьи, которые прямо отвечают на вопрос.
+3. Статья с определением понятия выше статьи со второстепенным условием.
+4. Если вопрос о штрафе за нетрезвое управление автомобилем — выше статья КоАП РФ об управлении транспортным средством в состоянии опьянения.
+5. Если вопрос о договоре подряда — выше статья "Договор подряда".
+6. Если вопрос о неустойке — выше статья "Понятие неустойки".
+7. Если вопрос об общем сроке исковой давности — выше статья "Общий срок исковой давности".
+8. Не выбирай соседние статьи только потому, что они из той же главы.
+9. Максимум источников: {limit}.
+"""
+
+    try:
+        response = client.chat.completions.create(
+            model=settings.RERANK_MODEL,
+            messages=[
+                {"role": "system", "content": "Ты строго ранжируешь статьи кодексов РФ по юридической релевантности."},
+                {"role": "user", "content": prompt.strip()},
+            ],
+            temperature=0,
+            max_tokens=120,
+            timeout=20,
+        )
+    except Exception:
+        return sources[:limit]
+
+    content = response.choices[0].message.content or ""
+    selected_indexes = []
+
+    for part in content.replace("\n", ",").split(","):
+        part = part.strip()
+
+        if not part.isdigit():
+            continue
+
+        value = int(part)
+
+        if 1 <= value <= len(sources) and value not in selected_indexes:
+            selected_indexes.append(value)
+
+    reranked = [sources[index - 1] for index in selected_indexes]
+
+    for item in sources:
+        if len(reranked) >= limit:
+            break
+
+        if item not in reranked:
+            reranked.append(item)
+
+    return reranked[:limit]
+
 def generate_legal_answer(
     user_question: str,
     knowledge_context: str = "",
@@ -224,6 +308,8 @@ def generate_legal_answer(
             {"role": "user", "content": user_prompt.strip()},
         ],
         temperature=0.2,
+        max_tokens=1200,
+        timeout=25,
     )
 
     return response.choices[0].message.content or ""

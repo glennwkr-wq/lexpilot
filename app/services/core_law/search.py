@@ -3,6 +3,9 @@ from sqlalchemy import text
 from app.db.session import SessionLocal
 
 
+RRF_K = 60
+
+
 def search_core_law(
     query: str,
     limit: int = 8,
@@ -17,24 +20,40 @@ def search_core_law(
     limit = max(1, min(int(limit), 30))
     queries = _build_query_list(query, expanded_queries)
 
-    collected = {}
+    ranking_pool = {}
 
     if query_embedding:
-        for item in _search_core_articles_vector(
+        vector_rows = _search_core_articles_vector(
             query_embedding=query_embedding,
-            limit=max(limit * 3, 20),
-        ):
-            _merge_article(collected, item)
+            limit=max(limit * 5, 40),
+        )
+        _add_ranked_rows(
+            pool=ranking_pool,
+            rows=vector_rows,
+            source_name="vector",
+            weight=1.35,
+            user_query=query,
+        )
 
-    for index, item_query in enumerate(queries):
+    for index, item_query in enumerate(queries[:5]):
         query_weight = 1.0 - min(index * 0.08, 0.35)
+        fts_rows = _search_core_articles_fts(
+            query=item_query,
+            limit=max(limit * 5, 40),
+        )
+        _add_ranked_rows(
+            pool=ranking_pool,
+            rows=fts_rows,
+            source_name=f"fts_{index}",
+            weight=1.0 * query_weight,
+            user_query=query,
+        )
 
-        for item in _search_core_articles_fts(item_query, limit=max(limit * 3, 20)):
-            item = dict(item)
-            item["rank"] = float(item.get("rank") or 0) * query_weight
-            _merge_article(collected, item)
+    results = list(ranking_pool.values())
 
-    results = list(collected.values())
+    for item in results:
+        item["rank"] = _final_core_rank(query, item)
+
     results.sort(key=lambda item: float(item.get("rank") or 0), reverse=True)
 
     return results[:limit]
@@ -54,7 +73,7 @@ def build_core_law_context(results: list[dict]) -> str:
 Название статьи: {item.get("article_title") or "Не указано"}
 Глава / раздел: {item.get("chapter") or "Не указано"}
 Источник: {item.get("source_url") or item.get("url") or "Не указан"}
-Способ поиска: {item.get("search_method") or "core_law_search"}
+Способ поиска: {item.get("search_method") or "core_law_hybrid"}
 Ранг поиска: {round(float(item.get("rank") or 0), 4)}
 
 Текст статьи:
@@ -70,10 +89,10 @@ def is_core_law_sufficient(results: list[dict]) -> bool:
 
     top_rank = float(results[0].get("rank") or 0)
 
-    if top_rank >= 0.55:
+    if top_rank >= 1.15:
         return True
 
-    if len(results) >= 3 and top_rank >= 0.35:
+    if len(results) >= 3 and top_rank >= 0.85:
         return True
 
     return False
@@ -83,9 +102,6 @@ def _search_core_articles_vector(
     query_embedding: list[float],
     limit: int,
 ) -> list[dict]:
-    if not query_embedding:
-        return []
-
     embedding_text = _format_embedding(query_embedding)
 
     with SessionLocal() as session:
@@ -109,9 +125,7 @@ def _search_core_articles_vector(
                 NULL AS document_date,
                 'Актуальность требует проверки по официальному источнику' AS status,
                 'core_law_vector' AS search_method,
-                (
-                    1 - (cla.embedding <=> CAST(:embedding AS vector))
-                ) AS rank
+                1 - (cla.embedding <=> CAST(:embedding AS vector)) AS raw_rank
             FROM core_law_articles cla
             WHERE cla.embedding IS NOT NULL
             ORDER BY cla.embedding <=> CAST(:embedding AS vector)
@@ -161,24 +175,16 @@ def _search_core_articles_fts(query: str, limit: int) -> list[dict]:
                         ELSE 0
                       END
                     + CASE
-                        WHEN cla.codex ILIKE '%' || :plain_query || '%' THEN 2.0
-                        ELSE 0
-                      END
-                    + CASE
-                        WHEN ('статья ' || cla.article_num) ILIKE '%' || :plain_query || '%' THEN 3.0
-                        ELSE 0
-                      END
-                    + CASE
                         WHEN cla.content ILIKE '%' || :plain_query || '%' THEN 0.8
                         ELSE 0
                       END
-                ) AS rank
+                ) AS raw_rank
             FROM core_law_articles cla
             CROSS JOIN search_query
             WHERE
                 search_query.query <> ''::tsquery
                 AND cla.search_vector @@ search_query.query
-            ORDER BY rank DESC, cla.id ASC
+            ORDER BY raw_rank DESC, cla.id ASC
             LIMIT :limit
         """), {
             "query": query,
@@ -189,20 +195,184 @@ def _search_core_articles_fts(query: str, limit: int) -> list[dict]:
     return [dict(row) for row in rows]
 
 
-def _merge_article(collected: dict, item: dict) -> None:
-    key = f"{item.get('codex_id')}:{item.get('article_num')}"
+def _add_ranked_rows(
+    pool: dict,
+    rows: list[dict],
+    source_name: str,
+    weight: float,
+    user_query: str,
+) -> None:
+    for position, row in enumerate(rows, start=1):
+        item = dict(row)
+        key = f"{item.get('codex_id')}:{item.get('article_num')}"
 
-    item = dict(item)
+        rrf_score = weight * (1.0 / (RRF_K + position))
+        raw_rank = float(item.get("raw_rank") or 0)
+        normalized_raw = min(max(raw_rank, 0.0), 1.0)
 
-    if item.get("search_method") == "core_law_vector":
-        item["rank"] = float(item.get("rank") or 0)
-    else:
-        item["rank"] = min(float(item.get("rank") or 0) / 10.0, 0.95)
+        existing = pool.get(key)
 
-    existing = collected.get(key)
+        if not existing:
+            item["rank"] = 0.0
+            item["rrf_score"] = 0.0
+            item["raw_score"] = 0.0
+            item["search_methods"] = []
+            existing = item
+            pool[key] = existing
 
-    if not existing or float(item.get("rank") or 0) > float(existing.get("rank") or 0):
-        collected[key] = item
+        existing["rrf_score"] = float(existing.get("rrf_score") or 0) + rrf_score
+        existing["raw_score"] = max(float(existing.get("raw_score") or 0), normalized_raw)
+
+        methods = existing.get("search_methods") or []
+        if source_name not in methods:
+            methods.append(source_name)
+
+        existing["search_methods"] = methods
+        existing["search_method"] = "core_law_hybrid:" + ",".join(methods)
+
+
+def _final_core_rank(user_query: str, item: dict) -> float:
+    query = _normalize_text(user_query)
+    codex = _normalize_text(item.get("codex"))
+    article_num = _normalize_text(item.get("article_num"))
+    article_title = _normalize_text(item.get("article_title"))
+    content = _normalize_text(item.get("content"))
+
+    rank = 0.0
+    rank += float(item.get("rrf_score") or 0) * 25.0
+    rank += float(item.get("raw_score") or 0) * 0.75
+
+    rank += _article_title_overlap_boost(query, article_title)
+    rank += _codex_domain_boost(query, codex)
+    rank += _article_number_boost(query, article_num)
+    rank += _important_phrase_boost(query, article_title, content)
+
+    return rank
+
+
+def _article_title_overlap_boost(query: str, article_title: str) -> float:
+    query_tokens = _meaningful_tokens(query)
+    title_tokens = _meaningful_tokens(article_title)
+
+    if not query_tokens or not title_tokens:
+        return 0.0
+
+    overlap = len(set(query_tokens) & set(title_tokens))
+
+    if overlap >= 3:
+        return 0.55
+
+    if overlap == 2:
+        return 0.35
+
+    if overlap == 1:
+        return 0.15
+
+    return 0.0
+
+
+def _codex_domain_boost(query: str, codex: str) -> float:
+    boost = 0.0
+
+    if _has_any(query, ["коап", "штраф", "административн", "правонаруш", "водител", "транспорт", "автомобил"]):
+        if "административных правонарушениях" in codex or "коап" in codex:
+            boost += 0.25
+
+    if _has_any(query, ["труд", "работник", "работодатель", "увольнен", "зарплат", "отпуск"]):
+        if "трудовой кодекс" in codex:
+            boost += 0.25
+
+    if _has_any(query, ["договор", "неустойк", "подряд", "убыт", "займ", "аренд", "купл", "продаж"]):
+        if "гражданский кодекс" in codex:
+            boost += 0.25
+
+    if _has_any(query, ["супруг", "алим", "ребен", "ребенок", "развод", "брак"]):
+        if "семейный кодекс" in codex:
+            boost += 0.25
+
+    if _has_any(query, ["уголов", "преступ", "наказан", "краж", "мошеннич"]):
+        if "уголовный кодекс" in codex:
+            boost += 0.25
+
+    if _has_any(query, ["налог", "ндфл", "ндс", "вычет"]):
+        if "налоговый кодекс" in codex:
+            boost += 0.25
+
+    if _has_any(query, ["жиль", "жилое", "квартира", "собственник", "мкд"]):
+        if "жилищный кодекс" in codex:
+            boost += 0.25
+
+    return boost
+
+
+def _article_number_boost(query: str, article_num: str) -> float:
+    if not article_num:
+        return 0.0
+
+    if f"статья {article_num}" in query or f"ст {article_num}" in query:
+        return 0.8
+
+    return 0.0
+
+
+def _important_phrase_boost(query: str, article_title: str, content: str) -> float:
+    text = f"{article_title} {content}"
+    boost = 0.0
+
+    if _has_any(query, ["нетрезв", "опьянен", "опьянение", "пьяный", "пьяная езда"]):
+        if "находящимся в состоянии опьянения" in text or "состоянии опьянения" in text:
+            boost += 0.8
+        if "управление транспортным средством" in text:
+            boost += 0.45
+
+    if _has_any(query, ["договор подряда", "подряд"]):
+        if "договор подряда" in article_title:
+            boost += 0.9
+
+    if _has_any(query, ["неустойк"]):
+        if "понятие неустойки" in article_title:
+            boost += 0.85
+
+    if _has_any(query, ["беременн", "беременная"]):
+        if "беременн" in text and "расторжение трудового договора" in text:
+            boost += 0.75
+
+    if _has_any(query, ["исковая давность", "срок исковой"]):
+        if "общий срок исковой давности" in article_title:
+            boost += 0.9
+
+    return boost
+
+
+def _meaningful_tokens(text_value: str) -> list[str]:
+    stop_words = {
+        "что", "как", "какой", "какая", "какие", "можно", "может",
+        "если", "для", "при", "или", "это", "его", "она", "они",
+        "рф", "российской", "федерации", "кодекс", "статья",
+    }
+
+    tokens = []
+
+    for token in _normalize_text(text_value).replace(".", " ").replace(",", " ").split():
+        token = token.strip()
+
+        if len(token) < 4:
+            continue
+
+        if token in stop_words:
+            continue
+
+        tokens.append(token)
+
+    return tokens
+
+
+def _has_any(text_value: str, needles: list[str]) -> bool:
+    return any(needle in text_value for needle in needles)
+
+
+def _normalize_text(value: object) -> str:
+    return " ".join(str(value or "").lower().replace("ё", "е").split())
 
 
 def _build_query_list(query: str, expanded_queries: list[str] | None) -> list[str]:
