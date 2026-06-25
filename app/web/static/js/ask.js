@@ -40,16 +40,14 @@ function renderSources(sources) {
         : "статус не указан";
 
       const rankText = source.rank
-        ? ` · релевантность ${Number(source.rank).toFixed(4)}`
+        ? ` • релевантность ${Number(source.rank).toFixed(2)}`
         : "";
 
       return `
         <div class="source-item">
           <strong>${index + 1}. ${escapeHtml(source.title || "Без названия")}</strong>
           <span>${escapeHtml(source.document_type || "тип не указан")} · ${numberText} · ${dateText}</span>
-          <small>${authorityText}</small>
-          <small>${statusText} · ${groupLabel}${rankText}</small>
-          <small>${escapeHtml(source.source_url || "")}</small>
+          <small>${groupLabel}${rankText}</small>
         </div>
       `;
     })
