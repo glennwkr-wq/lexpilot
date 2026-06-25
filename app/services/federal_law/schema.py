@@ -72,6 +72,11 @@ def ensure_federal_law_tables() -> None:
         """))
 
         session.execute(text("""
+            ALTER TABLE federal_law_documents
+            ADD COLUMN IF NOT EXISTS law_role TEXT NOT NULL DEFAULT 'OTHER'
+        """))
+
+        session.execute(text("""
             CREATE TABLE IF NOT EXISTS federal_law_import_runs (
                 id SERIAL PRIMARY KEY,
                 filename TEXT UNIQUE NOT NULL,
@@ -132,3 +137,79 @@ def ensure_federal_law_search_indexes() -> None:
         """))
 
         session.commit()
+
+def refresh_federal_law_roles() -> dict:
+    with SessionLocal() as session:
+        session.execute(text("""
+            UPDATE federal_law_documents
+            SET law_role = CASE
+                WHEN
+                    lower(coalesce(title, '')) LIKE '%проект%'
+                    OR lower(coalesce(title, '')) LIKE '%о проекте федерального закона%'
+                THEN 'PROJECT'
+
+                WHEN
+                    lower(coalesce(title, '')) LIKE '%о внесении изменений%'
+                    OR lower(coalesce(title, '')) LIKE '%о внесении изменения%'
+                    OR lower(coalesce(title, '')) LIKE '%о признании утративш%'
+                    OR lower(coalesce(title, '')) LIKE '%отдельные законодательные акты%'
+                THEN 'AMENDMENT'
+
+                WHEN
+                    lower(coalesce(title, '')) LIKE '%об исполнении бюджета%'
+                    OR lower(coalesce(title, '')) LIKE '%отчет об исполнении%'
+                    OR lower(coalesce(title, '')) LIKE '%отчёт об исполнении%'
+                THEN 'EXECUTION'
+
+                WHEN
+                    lower(coalesce(title, '')) LIKE '%о бюджете%'
+                    OR lower(coalesce(title, '')) LIKE '%бюджета пенсионного фонда%'
+                    OR lower(coalesce(title, '')) LIKE '%бюджета фонда%'
+                    OR lower(coalesce(title, '')) LIKE '%федеральном бюджете%'
+                THEN 'BUDGET'
+
+                WHEN
+                    lower(coalesce(title, '')) LIKE '%рсфср%'
+                    OR lower(coalesce(title, '')) LIKE '%ссср%'
+                    OR lower(coalesce(title, '')) LIKE '%совета министров%'
+                    OR lower(coalesce(title, '')) LIKE '%верховного совета%'
+                THEN 'HISTORICAL'
+
+                WHEN
+                    lower(coalesce(document_type, '')) LIKE '%кодекс%'
+                    OR lower(coalesce(title, '')) LIKE '%кодекс российской федерации%'
+                THEN 'CODE'
+
+                WHEN
+                    lower(coalesce(document_type, '')) LIKE '%федеральный конституционный закон%'
+                    OR lower(coalesce(document_type, '')) LIKE '%федеральный закон%'
+                    OR lower(coalesce(document_type, '')) LIKE '%закон российской федерации%'
+                THEN 'PRIMARY'
+
+                WHEN
+                    lower(coalesce(document_type, '')) LIKE '%постановление%'
+                    OR lower(coalesce(document_type, '')) LIKE '%приказ%'
+                    OR lower(coalesce(document_type, '')) LIKE '%регламент%'
+                    OR lower(coalesce(title, '')) LIKE '%правила%'
+                    OR lower(coalesce(title, '')) LIKE '%порядок%'
+                    OR lower(coalesce(title, '')) LIKE '%административного регламента%'
+                THEN 'IMPLEMENTING'
+
+                ELSE 'OTHER'
+            END,
+            updated_at = NOW()
+        """))
+
+        session.commit()
+
+        rows = session.execute(text("""
+            SELECT law_role, COUNT(*) AS count
+            FROM federal_law_documents
+            GROUP BY law_role
+            ORDER BY count DESC
+        """)).mappings().fetchall()
+
+    return {
+        "status": "ok",
+        "roles": [dict(row) for row in rows],
+    }

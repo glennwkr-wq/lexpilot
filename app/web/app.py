@@ -7,7 +7,10 @@ from app.services.knowledge.manual import (
     add_manual_knowledge_document,
 )
 from app.services.knowledge.search import search_knowledge, build_knowledge_context
-from app.services.federal_law.schema import ensure_federal_law_search_indexes
+from app.services.federal_law.schema import (
+    ensure_federal_law_search_indexes,
+    refresh_federal_law_roles,
+)
 from app.services.core_law.schema import ensure_core_law_indexes
 from app.services.core_law.import_codexes import import_core_law_articles
 from app.services.core_law.search import (
@@ -391,6 +394,16 @@ def create_app() -> Flask:
             "status": "ok",
             "message": "Federal law search indexes ensured.",
         })
+
+    @app.get("/admin/federal-law-roles")
+    def admin_federal_law_roles():
+        token = request.args.get("token")
+
+        if token != settings.INIT_DB_TOKEN:
+            return jsonify({"status": "error", "message": "Forbidden"}), 403
+
+        result = refresh_federal_law_roles()
+        return jsonify(result)
 
     @app.get("/admin/core-law-import")
     def admin_core_law_import():
