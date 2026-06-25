@@ -9,6 +9,7 @@ from app.services.knowledge.manual import (
 from app.services.knowledge.search import search_knowledge, build_knowledge_context
 from app.services.federal_law.schema import (
     ensure_federal_law_search_indexes,
+    ensure_federal_law_tables,
     refresh_federal_law_roles,
 )
 from app.services.core_law.schema import ensure_core_law_indexes
@@ -210,6 +211,8 @@ def get_knowledge_stats() -> dict:
 def create_app() -> Flask:
     app = Flask(__name__)
     app.config["SECRET_KEY"] = settings.SECRET_KEY
+    ensure_federal_law_tables()
+    ensure_federal_law_search_indexes()
 
     @app.get("/")
     def dashboard():
