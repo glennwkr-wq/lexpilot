@@ -23,6 +23,7 @@ from app.db.session import SessionLocal
 from app.providers.llm.openai import (
     generate_legal_answer,
     generate_legal_search_queries,
+    generate_embedding,
     rerank_federal_sources,
     analyze_legal_document,
 )
@@ -476,6 +477,11 @@ def create_app() -> Flask:
 
         search_queries = generate_legal_search_queries(question)
 
+        try:
+            core_query_embedding = generate_embedding(" ".join(search_queries[:3]))
+        except Exception:
+            core_query_embedding = []
+
         core_law_results = []
         federal_law_candidates = []
         federal_law_results = []
@@ -487,6 +493,7 @@ def create_app() -> Flask:
                 question,
                 limit=12,
                 expanded_queries=search_queries,
+                query_embedding=core_query_embedding,
             )
 
             if is_core_law_sufficient(core_law_candidates):

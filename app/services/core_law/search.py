@@ -7,6 +7,7 @@ def search_core_law(
     query: str,
     limit: int = 8,
     expanded_queries: list[str] | None = None,
+    query_embedding: list[float] | None = None,
 ) -> list[dict]:
     query = (query or "").strip()
 
@@ -18,10 +19,17 @@ def search_core_law(
 
     collected = {}
 
+    if query_embedding:
+        for item in _search_core_articles_vector(
+            query_embedding=query_embedding,
+            limit=max(limit * 3, 20),
+        ):
+            _merge_article(collected, item)
+
     for index, item_query in enumerate(queries):
         query_weight = 1.0 - min(index * 0.08, 0.35)
 
-        for item in _search_core_articles(item_query, limit=max(limit * 3, 20)):
+        for item in _search_core_articles_fts(item_query, limit=max(limit * 3, 20)):
             item = dict(item)
             item["rank"] = float(item.get("rank") or 0) * query_weight
             _merge_article(collected, item)
@@ -46,11 +54,11 @@ def build_core_law_context(results: list[dict]) -> str:
 Название статьи: {item.get("article_title") or "Не указано"}
 Глава / раздел: {item.get("chapter") or "Не указано"}
 Источник: {item.get("source_url") or item.get("url") or "Не указан"}
-Способ поиска: {item.get("search_method") or "core_law_fts"}
+Способ поиска: {item.get("search_method") or "core_law_search"}
 Ранг поиска: {round(float(item.get("rank") or 0), 4)}
 
 Текст статьи:
-{item.get("content")}
+{(item.get("content") or "")[:1800]}
 """.strip())
 
     return "\n\n---\n\n".join(blocks)
@@ -62,16 +70,61 @@ def is_core_law_sufficient(results: list[dict]) -> bool:
 
     top_rank = float(results[0].get("rank") or 0)
 
-    if top_rank >= 3.0:
+    if top_rank >= 0.55:
         return True
 
-    if len(results) >= 3 and top_rank >= 1.2:
+    if len(results) >= 3 and top_rank >= 0.35:
         return True
 
     return False
 
 
-def _search_core_articles(query: str, limit: int) -> list[dict]:
+def _search_core_articles_vector(
+    query_embedding: list[float],
+    limit: int,
+) -> list[dict]:
+    if not query_embedding:
+        return []
+
+    embedding_text = _format_embedding(query_embedding)
+
+    with SessionLocal() as session:
+        session.execute(text("SET LOCAL statement_timeout = '7000ms'"))
+
+        rows = session.execute(text("""
+            SELECT
+                cla.id AS article_id,
+                cla.codex,
+                cla.codex_id,
+                cla.chapter,
+                cla.article_num,
+                cla.article_title,
+                cla.content,
+                cla.url,
+                cla.url AS source_url,
+                'Статья кодекса' AS document_type,
+                cla.codex AS title,
+                NULL AS authority,
+                cla.article_num AS document_number,
+                NULL AS document_date,
+                'Актуальность требует проверки по официальному источнику' AS status,
+                'core_law_vector' AS search_method,
+                (
+                    1 - (cla.embedding <=> CAST(:embedding AS vector))
+                ) AS rank
+            FROM core_law_articles cla
+            WHERE cla.embedding IS NOT NULL
+            ORDER BY cla.embedding <=> CAST(:embedding AS vector)
+            LIMIT :limit
+        """), {
+            "embedding": embedding_text,
+            "limit": limit,
+        }).mappings().fetchall()
+
+    return [dict(row) for row in rows]
+
+
+def _search_core_articles_fts(query: str, limit: int) -> list[dict]:
     query = _prepare_search_query(query)
 
     if not query:
@@ -139,6 +192,13 @@ def _search_core_articles(query: str, limit: int) -> list[dict]:
 def _merge_article(collected: dict, item: dict) -> None:
     key = f"{item.get('codex_id')}:{item.get('article_num')}"
 
+    item = dict(item)
+
+    if item.get("search_method") == "core_law_vector":
+        item["rank"] = float(item.get("rank") or 0)
+    else:
+        item["rank"] = min(float(item.get("rank") or 0) / 10.0, 0.95)
+
     existing = collected.get(key)
 
     if not existing or float(item.get("rank") or 0) > float(existing.get("rank") or 0):
@@ -164,3 +224,7 @@ def _build_query_list(query: str, expanded_queries: list[str] | None) -> list[st
 
 def _prepare_search_query(query: str) -> str:
     return " ".join((query or "").replace("\n", " ").split())[:500]
+
+
+def _format_embedding(values: list[float]) -> str:
+    return "[" + ",".join(str(float(value)) for value in values) + "]"

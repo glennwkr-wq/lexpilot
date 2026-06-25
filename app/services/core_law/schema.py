@@ -5,6 +5,8 @@ from app.db.session import SessionLocal
 
 def ensure_core_law_tables() -> None:
     with SessionLocal() as session:
+        session.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+
         session.execute(text("""
             CREATE TABLE IF NOT EXISTS core_law_articles (
                 id SERIAL PRIMARY KEY,
@@ -17,10 +19,16 @@ def ensure_core_law_tables() -> None:
                 url TEXT,
                 source TEXT NOT NULL DEFAULT 'legal-ai-platform',
                 search_vector tsvector,
+                embedding vector(1536),
                 created_at TIMESTAMP NOT NULL DEFAULT NOW(),
                 updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
                 UNIQUE (codex_id, article_num)
             )
+        """))
+
+        session.execute(text("""
+            ALTER TABLE core_law_articles
+            ADD COLUMN IF NOT EXISTS embedding vector(1536)
         """))
 
         session.commit()
@@ -28,6 +36,8 @@ def ensure_core_law_tables() -> None:
 
 def ensure_core_law_indexes() -> None:
     with SessionLocal() as session:
+        session.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+
         session.execute(text("""
             CREATE INDEX IF NOT EXISTS idx_core_law_articles_codex_id
             ON core_law_articles (codex_id)
@@ -41,6 +51,13 @@ def ensure_core_law_indexes() -> None:
         session.execute(text("""
             CREATE INDEX IF NOT EXISTS idx_core_law_articles_search_vector
             ON core_law_articles USING GIN (search_vector)
+        """))
+
+        session.execute(text("""
+            CREATE INDEX IF NOT EXISTS idx_core_law_articles_embedding_hnsw
+            ON core_law_articles
+            USING hnsw (embedding vector_cosine_ops)
+            WHERE embedding IS NOT NULL
         """))
 
         session.commit()
