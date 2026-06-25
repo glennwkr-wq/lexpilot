@@ -1,3 +1,4 @@
+import json
 from openai import OpenAI
 
 from app.core.config import settings
@@ -244,6 +245,105 @@ def rerank_core_law_sources(
             reranked.append(item)
 
     return reranked[:limit]
+
+def assess_core_law_sufficiency(
+    user_question: str,
+    core_sources: list[dict],
+) -> dict:
+    if not settings.OPENAI_API_KEY:
+        return {
+            "is_sufficient": True,
+            "confidence": 0.5,
+            "reason": "OpenAI API key не настроен, используется fallback-логика.",
+            "federal_search_query": user_question,
+        }
+
+    if not core_sources:
+        return {
+            "is_sufficient": False,
+            "confidence": 1.0,
+            "reason": "Статьи кодексов не найдены.",
+            "federal_search_query": user_question,
+        }
+
+    source_blocks = []
+
+    for index, item in enumerate(core_sources[:5], start=1):
+        source_blocks.append(f"""
+[{index}]
+Кодекс: {item.get("codex")}
+Статья: {item.get("article_num")}
+Название статьи: {item.get("article_title")}
+Текст:
+{(item.get("content") or "")[:700]}
+""".strip())
+
+    prompt = f"""
+Ты юридический маршрутизатор LexPilot.
+
+Нужно решить, достаточно ли найденных статей кодексов РФ для ответа на вопрос юриста,
+или нужно дополнительно искать специальный федеральный закон / иной федеральный акт в большом корпусе RusLawOD.
+
+Вопрос юриста:
+{user_question}
+
+Найденные статьи кодексов:
+{chr(10).join(source_blocks)}
+
+Правила:
+1. Ответь строго JSON без markdown.
+2. is_sufficient=true только если статьи кодексов прямо и полно отвечают на вопрос.
+3. is_sufficient=false, если вопрос требует специального федерального закона вне кодексов.
+4. is_sufficient=false, если найденные статьи кодексов дают только общее основание, но не порядок, условия, процедуру, размер, специальные правила.
+5. Не используй ручные списки тем. Оценивай смысл вопроса и найденных источников.
+6. federal_search_query должен быть коротким юридическим поисковым запросом для федерального корпуса.
+
+Формат:
+{{
+  "is_sufficient": true,
+  "confidence": 0.0,
+  "reason": "краткая причина",
+  "federal_search_query": "поисковый запрос"
+}}
+"""
+
+    try:
+        response = client.chat.completions.create(
+            model=settings.RERANK_MODEL,
+            messages=[
+                {"role": "system", "content": "Ты строго оцениваешь достаточность найденных правовых источников."},
+                {"role": "user", "content": prompt.strip()},
+            ],
+            temperature=0,
+            max_tokens=220,
+            timeout=15,
+        )
+    except Exception:
+        return {
+            "is_sufficient": True,
+            "confidence": 0.5,
+            "reason": "Ошибка LLM-gate, используется core-law.",
+            "federal_search_query": user_question,
+        }
+
+    content = response.choices[0].message.content or ""
+
+    try:
+        parsed = json.loads(content)
+    except Exception:
+        return {
+            "is_sufficient": True,
+            "confidence": 0.5,
+            "reason": "LLM-gate вернул невалидный JSON.",
+            "federal_search_query": user_question,
+        }
+
+    return {
+        "is_sufficient": bool(parsed.get("is_sufficient")),
+        "confidence": float(parsed.get("confidence") or 0),
+        "reason": str(parsed.get("reason") or ""),
+        "federal_search_query": str(parsed.get("federal_search_query") or user_question),
+    }
 
 def generate_legal_answer(
     user_question: str,

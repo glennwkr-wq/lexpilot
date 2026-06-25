@@ -25,6 +25,7 @@ from app.providers.llm.openai import (
     generate_legal_search_queries,
     generate_embedding,
     rerank_core_law_sources,
+    assess_core_law_sufficiency,
     rerank_federal_sources,
     analyze_legal_document,
 )
@@ -503,16 +504,24 @@ def create_app() -> Flask:
                 limit=8,
             )
 
-            if is_core_law_sufficient(core_law_reranked):
+            core_gate = assess_core_law_sufficiency(
+                user_question=question,
+                core_sources=core_law_reranked[:5],
+            )
+
+            if is_core_law_sufficient(core_law_reranked) and core_gate.get("is_sufficient"):
                 core_law_results = core_law_reranked[:8]
                 search_route = "core_law_only"
             else:
                 search_route = "core_law_then_federal_law"
 
+                federal_query = core_gate.get("federal_search_query") or question
+                federal_expanded_queries = [federal_query] + search_queries
+
                 federal_law_candidates = search_federal_law(
-                    question,
+                    federal_query,
                     limit=30,
-                    expanded_queries=search_queries,
+                    expanded_queries=federal_expanded_queries,
                     query_embedding=[],
                 )
 
@@ -584,6 +593,7 @@ def create_app() -> Flask:
             "question": question,
             "search_queries": search_queries,
             "search_route": search_route,
+            "core_gate": core_gate if "core_gate" in locals() else None,
             "answer": answer,
             "federal_search_error": federal_search_error,
             "core_law_count": len(core_law_results),
