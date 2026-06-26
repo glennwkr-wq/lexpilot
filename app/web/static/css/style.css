@@ -1976,3 +1976,183 @@ button.secondary {
     grid-template-columns: 1fr;
   }
 }
+
+.interview-layout {
+  max-width: 1240px;
+  margin-top: 28px;
+  display: grid;
+  grid-template-columns: 430px minmax(0, 1fr);
+  gap: 22px;
+  align-items: start;
+}
+
+.interview-panel,
+.interview-result-panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  padding: 24px;
+}
+
+.interview-panel label {
+  display: block;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+
+.interview-panel textarea {
+  width: 100%;
+  min-height: 160px;
+  resize: vertical;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 16px;
+  font: inherit;
+  line-height: 1.5;
+}
+
+.template-choice-box {
+  margin-top: 18px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 14px;
+  background: #fafafa;
+}
+
+.template-choice-box.is-hidden {
+  display: none;
+}
+
+.template-choice-box > strong {
+  display: block;
+  margin-bottom: 10px;
+}
+
+.template-choice-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.template-choice-item {
+  width: 100%;
+  text-align: left;
+  border: 1px solid var(--border);
+  background: white;
+  border-radius: 12px;
+  padding: 11px;
+  cursor: pointer;
+}
+
+.template-choice-item.is-active {
+  border-color: var(--accent);
+}
+
+.template-choice-item span {
+  display: block;
+  font-weight: 700;
+}
+
+.template-choice-item small {
+  display: block;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+.single-question-box {
+  margin-top: 18px;
+}
+
+.single-question-box.is-hidden {
+  display: none;
+}
+
+.single-question-card {
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 18px;
+  background: #fafafa;
+}
+
+.single-question-card span {
+  display: block;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 6px;
+}
+
+.single-question-card strong {
+  display: block;
+  font-size: 18px;
+  margin-bottom: 10px;
+}
+
+.single-question-card p {
+  color: var(--muted);
+  line-height: 1.45;
+  margin: 0 0 12px;
+}
+
+.single-question-card input,
+.single-question-card textarea {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 13px;
+  font: inherit;
+  background: white;
+}
+
+.single-question-card textarea {
+  min-height: 110px;
+}
+
+.interview-progress-box {
+  margin-bottom: 16px;
+}
+
+.interview-progress-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.interview-progress-grid div {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 13px;
+  background: #fafafa;
+}
+
+.interview-progress-grid span {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.interview-progress-grid strong {
+  font-size: 16px;
+}
+
+.document-draft-text {
+  margin: 0;
+  white-space: pre-wrap;
+  font-family: Arial, sans-serif;
+  line-height: 1.65;
+  color: var(--text);
+}
+
+@media (max-width: 1000px) {
+  .interview-layout,
+  .interview-progress-grid {
+    grid-template-columns: 1fr;
+  }
+}

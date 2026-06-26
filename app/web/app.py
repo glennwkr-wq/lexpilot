@@ -693,7 +693,7 @@ def create_app() -> Flask:
         case_id = data.get("case_id") or None
         previous_data = data.get("previous_data") or None
         answers = data.get("answers") or {}
-        document_family = data.get("document_family") or None
+        selected_template_id = data.get("selected_template_id") or None
 
         if not user_request:
             return jsonify({
@@ -709,7 +709,7 @@ def create_app() -> Flask:
             client_context=client_context,
             previous_data=previous_data,
             answers=answers,
-            forced_family=document_family,
+            selected_template_id=selected_template_id,
         )
 
         if selected_client:
@@ -740,13 +740,13 @@ def create_app() -> Flask:
         content = (data.get("content") or "").strip()
         title = (data.get("title") or "Юридический документ").strip()
         client_name = (data.get("client_name") or "").strip()
-        document_family = (data.get("document_family") or "").strip()
+        template_id = (data.get("template_id") or "").strip()
         extracted_data = data.get("extracted_data") or {}
 
-        if document_family and extracted_data:
+        if template_id and extracted_data:
             try:
                 file_stream = render_docx_template(
-                    document_family=document_family,
+                    template_id=template_id,
                     extracted_data=extracted_data,
                     title=title,
                     client_name=client_name,

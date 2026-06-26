@@ -3,56 +3,33 @@ from pathlib import Path
 
 from docxtpl import DocxTemplate
 
+from app.services.documents.template_catalog import find_template_by_id
+
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 
-DOCX_TEMPLATE_MAP = {
-    "claim": PROJECT_ROOT / "document_templates" / "docx" / "claims" / "claim_generic.docx",
-    "lawsuit": PROJECT_ROOT / "document_templates" / "docx" / "lawsuits" / "lawsuit_generic.docx",
-    "motion": PROJECT_ROOT / "document_templates" / "docx" / "motions" / "motion_generic.docx",
-    "complaint": PROJECT_ROOT / "document_templates" / "docx" / "complaints" / "complaint_generic.docx",
-    "response": PROJECT_ROOT / "document_templates" / "docx" / "responses" / "response_generic.docx",
-    "appeal": PROJECT_ROOT / "document_templates" / "docx" / "appeals" / "appeal_generic.docx",
-    "cassation": PROJECT_ROOT / "document_templates" / "docx" / "cassations" / "cassation_generic.docx",
-    "unknown": PROJECT_ROOT / "document_templates" / "docx" / "claims" / "claim_generic.docx",
-}
-
-
-def get_docx_template_path(document_family: str | None) -> Path | None:
-    if not document_family:
-        return None
-
-    template_path = DOCX_TEMPLATE_MAP.get(document_family)
-
-    if not template_path or not template_path.exists():
-        return None
-
-    return template_path
-
-
-def get_docx_template_info(document_family: str | None) -> dict:
-    template_path = get_docx_template_path(document_family)
-
-    return {
-        "available": bool(template_path),
-        "path": str(template_path) if template_path else "",
-        "filename": template_path.name if template_path else "",
-    }
+DOCX_MIME_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 
 
 def render_docx_template(
-    document_family: str,
+    template_id: str,
     extracted_data: dict,
     title: str = "Юридический документ",
     client_name: str = "",
 ) -> BytesIO:
-    template_path = get_docx_template_path(document_family)
+    template = find_template_by_id(template_id)
 
-    if not template_path:
-        raise FileNotFoundError("DOCX-шаблон для выбранного типа документа не найден.")
+    if not template:
+        raise FileNotFoundError("Шаблон документа не найден в каталоге.")
+
+    template_path = PROJECT_ROOT / template["template_path"]
+
+    if not template_path.exists():
+        raise FileNotFoundError("DOCX-файл шаблона не найден.")
 
     document = DocxTemplate(str(template_path))
     context = build_docx_context(
+        template=template,
         extracted_data=extracted_data,
         title=title,
         client_name=client_name,
@@ -67,7 +44,29 @@ def render_docx_template(
     return file_stream
 
 
+def get_docx_template_info(template_id: str | None) -> dict:
+    template = find_template_by_id(template_id or "")
+
+    if not template:
+        return {
+            "available": False,
+            "id": "",
+            "title": "",
+            "path": "",
+            "filename": "",
+        }
+
+    return {
+        "available": True,
+        "id": template.get("id") or "",
+        "title": template.get("title") or "",
+        "path": template.get("template_path") or "",
+        "filename": Path(template.get("template_path") or "").name,
+    }
+
+
 def build_docx_context(
+    template: dict,
     extracted_data: dict,
     title: str = "Юридический документ",
     client_name: str = "",
@@ -119,52 +118,8 @@ def build_docx_context(
     for key, value in parties.items():
         context[f"party_{key}"] = _normalize_template_value(value)
 
-    defaults = {
-        "sender": "[УКАЗАТЬ_ОТПРАВИТЕЛЯ]",
-        "recipient": "[УКАЗАТЬ_ПОЛУЧАТЕЛЯ]",
-        "claim_basis": "[УКАЗАТЬ_ОСНОВАНИЕ_ТРЕБОВАНИЙ]",
-        "demand": "[УКАЗАТЬ_ТРЕБОВАНИЕ]",
-        "deadline": "[УКАЗАТЬ_СРОК]",
-        "contract_number": "[УКАЗАТЬ_НОМЕР_ДОГОВОРА]",
-        "contract_date": "[УКАЗАТЬ_ДАТУ_ДОГОВОРА]",
-        "debt_amount": "[УКАЗАТЬ_СУММУ_ДОЛГА]",
-        "penalty_amount": "[УКАЗАТЬ_СУММУ_НЕУСТОЙКИ]",
-        "evidence": "[УКАЗАТЬ_ДОКАЗАТЕЛЬСТВА]",
-        "attachments": "[УКАЗАТЬ_ПРИЛОЖЕНИЯ]",
-        "court": "[УКАЗАТЬ_СУД]",
-        "plaintiff": "[УКАЗАТЬ_ИСТЦА]",
-        "defendant": "[УКАЗАТЬ_ОТВЕТЧИКА]",
-        "claims": "[УКАЗАТЬ_ИСКОВЫЕ_ТРЕБОВАНИЯ]",
-        "facts": "[УКАЗАТЬ_ОБСТОЯТЕЛЬСТВА]",
-        "claim_price": "[УКАЗАТЬ_ЦЕНУ_ИСКА]",
-        "state_duty": "[УКАЗАТЬ_ГОСПОШЛИНУ]",
-        "pretrial_claim": "[УКАЗАТЬ_ДОСУДЕБНЫЙ_ПОРЯДОК]",
-        "court_or_body": "[УКАЗАТЬ_СУД_ИЛИ_ОРГАН]",
-        "case_number": "[УКАЗАТЬ_НОМЕР_ДЕЛА]",
-        "applicant": "[УКАЗАТЬ_ЗАЯВИТЕЛЯ]",
-        "request": "[УКАЗАТЬ_ПРОСЬБУ]",
-        "grounds": "[УКАЗАТЬ_ОСНОВАНИЯ]",
-        "participants": "[УКАЗАТЬ_УЧАСТНИКОВ]",
-        "addressee": "[УКАЗАТЬ_АДРЕСАТА]",
-        "authority": "[УКАЗАТЬ_ОРГАН_ИЛИ_ДОЛЖНОСТНОЕ_ЛИЦО]",
-        "challenged_action": "[УКАЗАТЬ_ЧТО_ОБЖАЛУЕТСЯ]",
-        "decision_date": "[УКАЗАТЬ_ДАТУ_РЕШЕНИЯ_ИЛИ_ДЕЙСТВИЯ]",
-        "respondent": "[УКАЗАТЬ_ЛИЦО_ПОДАЮЩЕЕ_ОТЗЫВ]",
-        "opponent": "[УКАЗАТЬ_ОППОНЕНТА]",
-        "position": "[УКАЗАТЬ_ПОЗИЦИЮ_ПО_ТРЕБОВАНИЯМ]",
-        "arguments": "[УКАЗАТЬ_ВОЗРАЖЕНИЯ]",
-        "appeal_court": "[УКАЗАТЬ_АПЕЛЛЯЦИОННЫЙ_СУД]",
-        "first_instance_court": "[УКАЗАТЬ_СУД_ПЕРВОЙ_ИНСТАНЦИИ]",
-        "decision": "[УКАЗАТЬ_ОБЖАЛУЕМЫЙ_СУДЕБНЫЙ_АКТ]",
-        "appeal_arguments": "[УКАЗАТЬ_ДОВОДЫ_АПЕЛЛЯЦИИ]",
-        "requested_result": "[УКАЗАТЬ_ПРОСИТЕЛЬНУЮ_ЧАСТЬ]",
-        "cassation_court": "[УКАЗАТЬ_КАССАЦИОННЫЙ_СУД]",
-        "challenged_acts": "[УКАЗАТЬ_ОБЖАЛУЕМЫЕ_СУДЕБНЫЕ_АКТЫ]",
-        "material_violations": "[УКАЗАТЬ_СУЩЕСТВЕННЫЕ_НАРУШЕНИЯ]",
-    }
-
-    for key, value in defaults.items():
-        context.setdefault(key, value)
+    for variable in template.get("variables") or []:
+        context.setdefault(variable, f"[УКАЗАТЬ_{variable.upper()}]")
 
     return context
 
