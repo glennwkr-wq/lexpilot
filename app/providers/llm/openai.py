@@ -2,9 +2,63 @@ import json
 from openai import OpenAI
 
 from app.core.config import settings
-
+import contextvars
 
 client = OpenAI(api_key=settings.OPENAI_API_KEY)
+
+_openai_usage = contextvars.ContextVar("openai_usage", default=[])
+
+
+def reset_openai_usage() -> None:
+    _openai_usage.set([])
+
+
+def get_openai_usage_summary() -> dict:
+    items = _openai_usage.get() or []
+
+    return {
+        "calls": items,
+        "input_tokens": sum(item.get("input_tokens", 0) for item in items),
+        "output_tokens": sum(item.get("output_tokens", 0) for item in items),
+        "total_tokens": sum(item.get("total_tokens", 0) for item in items),
+    }
+
+
+def _log_openai_usage(stage: str, model: str, response) -> None:
+    usage = getattr(response, "usage", None)
+
+    if not usage:
+        return
+
+    input_tokens = getattr(usage, "prompt_tokens", None)
+    output_tokens = getattr(usage, "completion_tokens", None)
+    total_tokens = getattr(usage, "total_tokens", None)
+
+    if input_tokens is None:
+        input_tokens = getattr(usage, "input_tokens", 0) or 0
+
+    if output_tokens is None:
+        output_tokens = getattr(usage, "output_tokens", 0) or 0
+
+    if total_tokens is None:
+        total_tokens = getattr(usage, "total_tokens", input_tokens + output_tokens) or 0
+
+    item = {
+        "stage": stage,
+        "model": model,
+        "input_tokens": int(input_tokens),
+        "output_tokens": int(output_tokens),
+        "total_tokens": int(total_tokens),
+    }
+
+    current = list(_openai_usage.get() or [])
+    current.append(item)
+    _openai_usage.set(current)
+
+    print({
+        "event": "openai_usage",
+        **item,
+    }, flush=True)
 
 def generate_legal_search_queries(user_question: str) -> list[str]:
     if not settings.OPENAI_API_KEY:
@@ -33,6 +87,8 @@ def generate_legal_search_queries(user_question: str) -> list[str]:
             ],
             temperature=0.1,
         )
+        _log_openai_usage("generate_search_queries", "gpt-4.1-mini", response)
+
     except Exception:
         return [user_question]
 
@@ -64,7 +120,7 @@ def generate_embedding(text_value: str) -> list[float]:
         model=settings.EMBEDDING_MODEL,
         input=text_value[:8000],
     )
-
+    _log_openai_usage("generate_embedding", settings.EMBEDDING_MODEL, response)
     return response.data[0].embedding
 
 
@@ -134,6 +190,7 @@ def rerank_federal_sources(
             ],
             temperature=0,
         )
+        _log_openai_usage("rerank_federal_sources", settings.RERANK_MODEL, response)
     except Exception:
         return sources[:limit]
 
@@ -218,6 +275,7 @@ def rerank_core_law_sources(
             max_tokens=120,
             timeout=20,
         )
+        _log_openai_usage("rerank_core_law_sources", settings.RERANK_MODEL, response)
     except Exception:
         return sources[:limit]
 
@@ -318,6 +376,7 @@ def assess_core_law_sufficiency(
             max_tokens=220,
             timeout=15,
         )
+        _log_openai_usage("assess_core_law_sufficiency", settings.RERANK_MODEL, response)
     except Exception:
         return {
             "is_sufficient": True,
@@ -411,7 +470,7 @@ def generate_legal_answer(
         max_tokens=1200,
         timeout=25,
     )
-
+    _log_openai_usage("generate_legal_answer", "gpt-4.1-mini", response)
     return response.choices[0].message.content or ""
 
 def generate_document_draft(
@@ -502,7 +561,7 @@ document_type: {detected_document_type or "не определен"}
         ],
         temperature=0.1,
     )
-
+    _log_openai_usage("generate_document_draft", "gpt-4.1-mini", response)
     return response.choices[0].message.content or ""
 
 def analyze_legal_document(
@@ -561,5 +620,5 @@ def analyze_legal_document(
         ],
         temperature=0.15,
     )
-
+    _log_openai_usage("analyze_legal_document", "gpt-4.1-mini", response)
     return response.choices[0].message.content or ""

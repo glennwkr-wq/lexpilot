@@ -33,6 +33,8 @@ from app.providers.llm.openai import (
     assess_core_law_sufficiency,
     rerank_federal_sources,
     analyze_legal_document,
+    reset_openai_usage,
+    get_openai_usage_summary,
 )
 from app.services.documents.builder import build_document_from_request
 from app.services.documents.export_docx import (
@@ -499,7 +501,7 @@ def create_app() -> Flask:
                 "status": "error",
                 "message": "Question is required",
             }), 400
-
+        reset_openai_usage()
         step_started = time.perf_counter()
         search_queries = generate_legal_search_queries(question)
         mark_timing("generate_search_queries", step_started)
@@ -641,6 +643,15 @@ def create_app() -> Flask:
             "sources_count": len(all_sources),
         }, flush=True)
 
+        openai_usage = get_openai_usage_summary()
+
+        print({
+            "event": "api_ask_openai_usage_total",
+            "question": question[:120],
+            "search_route": search_route,
+            "openai_usage": openai_usage,
+        }, flush=True)
+
         return jsonify({
             "status": "ok",
             "question": question,
@@ -652,6 +663,7 @@ def create_app() -> Flask:
             "federal_search_error": federal_search_error,
             "core_law_count": len(core_law_results),
             "federal_candidates_count": len(federal_law_candidates),
+            "openai_usage": openai_usage,
             "sources": all_sources,
         })
 
