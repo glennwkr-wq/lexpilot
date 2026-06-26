@@ -1,3 +1,4 @@
+import time
 from flask import Flask, render_template, jsonify, request, send_file
 from sqlalchemy import text
 from app.core.config import settings
@@ -484,6 +485,12 @@ def create_app() -> Flask:
 
     @app.post("/api/ask")
     def api_ask():
+        request_started_at = time.perf_counter()
+        timings = {}
+
+        def mark_timing(name: str, started_at: float) -> None:
+            timings[name] = round(time.perf_counter() - started_at, 3)
+
         data = request.get_json(silent=True) or {}
         question = (data.get("question") or "").strip()
 
@@ -493,12 +500,16 @@ def create_app() -> Flask:
                 "message": "Question is required",
             }), 400
 
+        step_started = time.perf_counter()
         search_queries = generate_legal_search_queries(question)
+        mark_timing("generate_search_queries", step_started)
 
+        step_started = time.perf_counter()
         try:
             core_query_embedding = generate_embedding(" ".join(search_queries[:3]))
         except Exception:
             core_query_embedding = []
+        mark_timing("generate_embedding", step_started)
 
         core_law_results = []
         federal_law_candidates = []
@@ -507,23 +518,29 @@ def create_app() -> Flask:
         search_route = "core_law"
 
         try:
+            step_started = time.perf_counter()
             core_law_candidates = search_core_law(
                 question,
                 limit=12,
                 expanded_queries=search_queries,
                 query_embedding=core_query_embedding,
             )
+            mark_timing("core_law_search", step_started)
 
+            step_started = time.perf_counter()
             core_law_reranked = rerank_core_law_sources(
                 user_question=question,
                 sources=core_law_candidates[:20],
                 limit=8,
             )
+            mark_timing("core_law_rerank", step_started)
 
+            step_started = time.perf_counter()
             core_gate = assess_core_law_sufficiency(
                 user_question=question,
                 core_sources=core_law_reranked[:5],
             )
+            mark_timing("core_law_gate", step_started)
 
             if is_core_law_sufficient(core_law_reranked) and core_gate.get("is_sufficient"):
                 core_law_results = core_law_reranked[:8]
@@ -534,12 +551,14 @@ def create_app() -> Flask:
                 federal_query = core_gate.get("federal_search_query") or question
                 federal_expanded_queries = [federal_query] + search_queries
 
+                step_started = time.perf_counter()
                 federal_law_candidates = search_federal_law(
                     federal_query,
                     limit=30,
                     expanded_queries=federal_expanded_queries,
                     query_embedding=[],
                 )
+                mark_timing("federal_law_search", step_started)
 
                 combined_candidates = []
 
@@ -549,11 +568,13 @@ def create_app() -> Flask:
                 for item in federal_law_candidates:
                     combined_candidates.append(item)
 
+                step_started = time.perf_counter()
                 federal_law_results = rerank_federal_sources(
                     user_question=question,
                     sources=combined_candidates,
                     limit=8,
                 )
+                mark_timing("federal_law_rerank", step_started)
 
         except Exception as error:
             core_law_results = []
@@ -561,18 +582,22 @@ def create_app() -> Flask:
             federal_law_results = []
             federal_search_error = str(error)
 
+        step_started = time.perf_counter()
         core_context = build_core_law_context(core_law_results)
         federal_context = build_federal_law_context(federal_law_results)
         local_context = build_knowledge_context([])
+        mark_timing("build_context", step_started)
 
         knowledge_context = "\n\n".join(
             block for block in [core_context, federal_context, local_context] if block
         )
 
+        step_started = time.perf_counter()
         answer = generate_legal_answer(
             user_question=question,
             knowledge_context=knowledge_context,
         )
+        mark_timing("generate_answer", step_started)
 
         all_sources = []
 
@@ -604,12 +629,25 @@ def create_app() -> Flask:
                 "source_group": item.get("source_group") or "federal_law",
             })
 
+        timings["total"] = round(time.perf_counter() - request_started_at, 3)
+
+        print({
+            "event": "api_ask_timing",
+            "question": question[:120],
+            "search_route": search_route,
+            "timings": timings,
+            "core_law_count": len(core_law_results),
+            "federal_candidates_count": len(federal_law_candidates),
+            "sources_count": len(all_sources),
+        }, flush=True)
+
         return jsonify({
             "status": "ok",
             "question": question,
             "search_queries": search_queries,
             "search_route": search_route,
             "core_gate": core_gate if "core_gate" in locals() else None,
+            "timings": timings,
             "answer": answer,
             "federal_search_error": federal_search_error,
             "core_law_count": len(core_law_results),
