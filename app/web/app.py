@@ -691,6 +691,9 @@ def create_app() -> Flask:
         user_request = (data.get("request") or "").strip()
         client_id = data.get("client_id") or None
         case_id = data.get("case_id") or None
+        previous_data = data.get("previous_data") or None
+        answers = data.get("answers") or {}
+        document_family = data.get("document_family") or None
 
         if not user_request:
             return jsonify({
@@ -704,6 +707,9 @@ def create_app() -> Flask:
         result = build_document_from_request(
             user_request=user_request,
             client_context=client_context,
+            previous_data=previous_data,
+            answers=answers,
+            forced_family=document_family,
         )
 
         if selected_client:
@@ -711,10 +717,6 @@ def create_app() -> Flask:
                 "id": selected_client["id"],
                 "full_name": selected_client["full_name"],
             }
-
-        result["docx_template"] = get_docx_template_info(
-            result.get("detected_family")
-        )
 
         if result.get("status") == "ok" and case_id and result.get("draft"):
             saved_document = save_generated_document({

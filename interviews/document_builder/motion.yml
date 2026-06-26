@@ -1,0 +1,56 @@
+family: motion
+label: Ходатайство
+template: motion_generic.docx
+template_path: document_templates/docx/motions/motion_generic.docx
+source: interviews/document_builder/motion.yml
+
+fields:
+  - key: court_or_body
+    label: Суд или орган
+    type: text
+    required: true
+
+  - key: case_number
+    label: Номер дела
+    type: text
+    required: false
+
+  - key: applicant
+    label: Заявитель
+    type: text
+    required: true
+
+  - key: request
+    label: Суть ходатайства
+    type: textarea
+    required: true
+
+  - key: grounds
+    label: Основания ходатайства
+    type: textarea
+    required: true
+
+  - key: participants
+    label: Участники дела
+    type: textarea
+    required: false
+
+  - key: evidence
+    label: Доказательства
+    type: textarea
+    required: false
+
+  - key: attachments
+    label: Приложения
+    type: textarea
+    required: false
+
+sections:
+  - title: Ходатайство
+    body: |
+      Заявитель: {{ applicant }}
+      Просьба:
+      {{ request }}
+
+      Основания:
+      {{ grounds }}

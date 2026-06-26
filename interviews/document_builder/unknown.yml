@@ -1,0 +1,53 @@
+family: unknown
+label: Юридический документ
+template: claim_generic.docx
+template_path: document_templates/docx/claims/claim_generic.docx
+source: interviews/document_builder/unknown.yml
+
+fields:
+  - key: document_goal
+    label: Цель документа
+    type: textarea
+    required: true
+
+  - key: sender
+    label: Кто подает или направляет документ
+    type: text
+    required: true
+
+  - key: recipient
+    label: Кому адресован документ
+    type: text
+    required: true
+
+  - key: facts
+    label: Фактические обстоятельства
+    type: textarea
+    required: true
+
+  - key: request
+    label: Что нужно получить в результате
+    type: textarea
+    required: true
+
+  - key: evidence
+    label: Доказательства
+    type: textarea
+    required: false
+
+  - key: attachments
+    label: Приложения
+    type: textarea
+    required: false
+
+sections:
+  - title: Юридический документ
+    body: |
+      Цель:
+      {{ document_goal }}
+
+      Обстоятельства:
+      {{ facts }}
+
+      Просьба:
+      {{ request }}

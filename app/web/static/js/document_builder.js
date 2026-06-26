@@ -1,6 +1,4 @@
 const documentRequestInput = document.getElementById("documentRequest");
-const documentQuestionsPanel = document.getElementById("documentQuestionsPanel");
-const documentQuestionsBox = document.getElementById("documentQuestionsBox");
 const builderClientIdInput = document.getElementById("builderClientId");
 const builderCaseIdInput = document.getElementById("builderCaseId");
 const generateDocumentButton = document.getElementById("generateDocumentButton");
@@ -8,122 +6,47 @@ const downloadDocumentButton = document.getElementById("downloadDocumentButton")
 const documentDraftBox = document.getElementById("documentDraftBox");
 const documentSourcesBox = document.getElementById("documentSourcesBox");
 const documentStatusBadge = document.getElementById("documentStatusBadge");
+const interviewProgressBox = document.getElementById("interviewProgressBox");
+const interviewQuestionsPanel = document.getElementById("interviewQuestionsPanel");
+const interviewQuestionsBox = document.getElementById("interviewQuestionsBox");
 
 let currentDocumentDraft = "";
 let currentDocumentTitle = "Юридический документ";
 let currentClientName = "";
 let currentDocumentFamily = "";
 let currentExtractedData = {};
-let currentMissingFieldAnswers = {};
+let currentVisibleFields = [];
+let currentMissingFields = [];
+let interviewStarted = false;
 
 function setDocumentLoading(isLoading) {
   generateDocumentButton.disabled = isLoading;
   generateDocumentButton.textContent = isLoading
-    ? "LexPilot собирает данные..."
-    : "Сформировать документ";
+    ? "LexPilot обновляет интервью..."
+    : interviewStarted
+      ? "Обновить документ"
+      : "Начать интервью";
 
   if (isLoading) {
-    documentStatusBadge.textContent = "Проверка данных";
+    documentStatusBadge.textContent = "Обработка";
   }
-}
-
-function renderDocumentMeta(data) {
-  const label = data.detected_label || buildDocumentTitle(data);
-  const completeness = data.completeness || {};
-  const missingFields = data.missing_required_fields || [];
-  const extractedData = data.extracted_data || {};
-  const fields = extractedData.fields || {};
-
-  const filledFields = Object.entries(fields)
-    .filter(([, value]) => value && value !== "не указано")
-    .slice(0, 8);
-
-  const filledHtml = filledFields.length
-    ? filledFields
-        .map(([key, value]) => `<li><strong>${escapeHtml(key)}:</strong> ${escapeHtml(String(value))}</li>`)
-        .join("")
-    : "<li>LexPilot не нашел явно заполненных полей.</li>";
-
-  const missingHtml = missingFields.length
-    ? missingFields
-        .map((field) => `<li>${escapeHtml(field.label || field.key)}</li>`)
-        .join("")
-    : "<li>Критичных пропусков по обязательным полям не найдено.</li>";
-
-  return `
-    <div class="document-meta-panel">
-      <div class="document-meta-grid">
-        <div>
-          <span class="meta-label">Тип документа</span>
-          <strong>${escapeHtml(label)}</strong>
-        </div>
-        <div>
-          <span class="meta-label">Заполненность</span>
-          <strong>${Number(completeness.percent || 0)}%</strong>
-        </div>
-        <div>
-          <span class="meta-label">Статус</span>
-          <strong>${escapeHtml(completeness.label || "Проверка выполнена")}</strong>
-        </div>
-      </div>
-
-      <div class="document-check-grid">
-        <div>
-          <h4>Найденные данные</h4>
-          <ul>${filledHtml}</ul>
-        </div>
-        <div>
-          <h4>Чего не хватает</h4>
-          <ul>${missingHtml}</ul>
-        </div>
-      </div>
-    </div>
-  `;
-}
-
-function renderDocumentSources(sources) {
-  if (!sources || sources.length === 0) {
-    documentSourcesBox.innerHTML = "<p>Релевантные материалы базы знаний не найдены.</p>";
-    return;
-  }
-
-  documentSourcesBox.innerHTML = sources
-    .slice(0, 5)
-    .map((source, index) => {
-      return `
-        <div class="source-item">
-          <strong>${index + 1}. ${escapeHtml(source.title || "Без названия")}</strong>
-          <span>${escapeHtml(source.document_type || "Материал базы")}</span>
-        </div>
-      `;
-    })
-    .join("");
 }
 
 generateDocumentButton.addEventListener("click", async () => {
   const requestText = documentRequestInput.value.trim();
 
-  const additionalText = buildStructuredAnswersText();
-
   if (!requestText) {
-    documentDraftBox.textContent = "Введите исходные данные для документа.";
+    documentDraftBox.textContent = "Введите задачу юриста.";
     documentStatusBadge.textContent = "Нет данных";
     return;
   }
 
-  currentDocumentDraft = "";
-  currentDocumentTitle = "Юридический документ";
-  currentClientName = getSelectedClientName();
-  currentDocumentFamily = "";
-  currentExtractedData = {};
-
-  if (downloadDocumentButton) {
-    downloadDocumentButton.disabled = true;
-  }
+  const answers = collectInterviewAnswers();
 
   setDocumentLoading(true);
-  documentDraftBox.textContent = "Идёт определение типа документа, извлечение данных и подготовка черновика...";
-  documentSourcesBox.textContent = "Поиск материалов...";
+  documentDraftBox.textContent = "LexPilot проверяет данные интервью...";
+  documentSourcesBox.textContent = "Проверка материалов...";
+  interviewProgressBox.textContent = "Идёт обработка...";
 
   try {
     const response = await fetch("/api/document-builder", {
@@ -132,9 +55,12 @@ generateDocumentButton.addEventListener("click", async () => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        request: buildCombinedRequest(requestText, additionalText),
+        request: requestText,
         client_id: builderClientIdInput ? builderClientIdInput.value : "",
         case_id: builderCaseIdInput ? builderCaseIdInput.value : "",
+        previous_data: currentExtractedData,
+        answers: answers,
+        document_family: currentDocumentFamily,
       }),
     });
 
@@ -146,37 +72,41 @@ generateDocumentButton.addEventListener("click", async () => {
       return;
     }
 
+    interviewStarted = true;
+
     currentDocumentDraft = data.draft || "";
     currentDocumentTitle = data.detected_label || buildDocumentTitle(data);
     currentClientName = data.client?.full_name || getSelectedClientName();
     currentDocumentFamily = data.detected_family || "";
     currentExtractedData = data.extracted_data || {};
-    renderDocumentQuestions(data.missing_required_fields || []);
+    currentVisibleFields = data.visible_fields || [];
+    currentMissingFields = data.missing_required_fields || [];
+
+    renderInterviewProgress(data);
+    renderInterviewQuestions(currentVisibleFields, currentExtractedData.fields || {});
+    renderDocumentSources(data.sources);
 
     documentDraftBox.innerHTML = `
-      ${renderDocumentMeta(data)}
       <pre class="document-draft-text">${escapeHtml(currentDocumentDraft || "Документ не был сформирован.")}</pre>
     `;
 
-    renderDocumentSources(data.sources);
-
-    const completeness = data.completeness || {};
-    const missingCount = Number(completeness.missing_count || 0);
+    const missingCount = Number(data.completeness?.missing_count || 0);
 
     if (data.saved_document) {
-      documentStatusBadge.textContent = "Черновик сохранён в дело";
+      documentStatusBadge.textContent = "Сохранён в дело";
     } else if (missingCount > 0) {
-      documentStatusBadge.textContent = "Нужны уточнения";
+      documentStatusBadge.textContent = "Нужны данные";
     } else {
-      documentStatusBadge.textContent = "Черновик готов";
+      documentStatusBadge.textContent = "Готов к Word";
     }
 
     if (downloadDocumentButton) {
-      downloadDocumentButton.disabled = !currentDocumentDraft;
+      downloadDocumentButton.disabled = false;
     }
   } catch (error) {
     documentDraftBox.textContent = "Ошибка соединения с сервером.";
     documentSourcesBox.textContent = "";
+    interviewProgressBox.textContent = "";
     documentStatusBadge.textContent = "Ошибка";
   } finally {
     setDocumentLoading(false);
@@ -185,8 +115,8 @@ generateDocumentButton.addEventListener("click", async () => {
 
 if (downloadDocumentButton) {
   downloadDocumentButton.addEventListener("click", async () => {
-    if (!currentDocumentDraft) {
-      documentStatusBadge.textContent = "Нет документа";
+    if (!currentDocumentFamily || !currentExtractedData) {
+      documentStatusBadge.textContent = "Нет данных";
       return;
     }
 
@@ -206,15 +136,10 @@ if (downloadDocumentButton) {
           document_family: currentDocumentFamily,
           extracted_data: currentExtractedData,
         }),
-          body: JSON.stringify({
-          content: currentDocumentDraft,
-          title: currentDocumentTitle,
-          client_name: currentClientName,
-        }),
       });
 
       if (!response.ok) {
-        documentStatusBadge.textContent = "Ошибка DOCX";
+        documentStatusBadge.textContent = "Ошибка Word";
         return;
       }
 
@@ -239,21 +164,178 @@ if (downloadDocumentButton) {
   });
 }
 
-function buildCombinedRequest(requestText, additionalText) {
-  if (!additionalText) {
-    return requestText;
+function renderInterviewProgress(data) {
+  const completeness = data.completeness || {};
+  const template = data.docx_template || {};
+  const missingFields = data.missing_required_fields || [];
+  const extractedData = data.extracted_data || {};
+  const fields = extractedData.fields || {};
+
+  const filledCount = Object.values(fields).filter((value) => {
+    return value && value !== "не указано";
+  }).length;
+
+  const templateStatus = template.available
+    ? `Word-шаблон найден: ${template.filename}`
+    : "Word-шаблон не найден, будет использован fallback";
+
+  const missingText = missingFields.length
+    ? missingFields.map((field) => `<li>${escapeHtml(field.label || field.key)}</li>`).join("")
+    : "<li>Критичных пропусков нет.</li>";
+
+  interviewProgressBox.innerHTML = `
+    <div class="interview-progress-grid">
+      <div>
+        <span>Тип документа</span>
+        <strong>${escapeHtml(data.detected_label || buildDocumentTitle(data))}</strong>
+      </div>
+      <div>
+        <span>Заполненность</span>
+        <strong>${Number(completeness.percent || 0)}%</strong>
+      </div>
+      <div>
+        <span>Заполнено полей</span>
+        <strong>${filledCount}</strong>
+      </div>
+    </div>
+
+    <div class="interview-template-status">
+      ${escapeHtml(templateStatus)}
+    </div>
+
+    <div class="interview-missing-box">
+      <strong>Чего не хватает</strong>
+      <ul>${missingText}</ul>
+    </div>
+  `;
+}
+
+function renderInterviewQuestions(fields, values) {
+  if (!interviewQuestionsPanel || !interviewQuestionsBox) {
+    return;
+  }
+
+  if (!fields || fields.length === 0) {
+    interviewQuestionsPanel.classList.add("is-hidden");
+    interviewQuestionsBox.innerHTML = "";
+    return;
+  }
+
+  interviewQuestionsPanel.classList.remove("is-hidden");
+
+  interviewQuestionsBox.innerHTML = fields
+    .map((field) => {
+      const key = field.key || "";
+      const label = field.label || key;
+      const help = field.help || "";
+      const type = field.type || "text";
+      const placeholder = field.placeholder || "";
+      const value = values[key] || "";
+
+      return buildQuestionInput({
+        key,
+        label,
+        help,
+        type,
+        placeholder,
+        value,
+        choices: field.choices || [],
+        required: Boolean(field.required),
+      });
+    })
+    .join("");
+}
+
+function buildQuestionInput(field) {
+  const requiredMark = field.required ? "<em>обязательно</em>" : "<em>желательно</em>";
+  const helpHtml = field.help ? `<small>${escapeHtml(field.help)}</small>` : "";
+
+  if (field.type === "textarea") {
+    return `
+      <label class="interview-question-item">
+        <span>${escapeHtml(field.label)} ${requiredMark}</span>
+        ${helpHtml}
+        <textarea
+          data-interview-field="${escapeHtml(field.key)}"
+          placeholder="${escapeHtml(field.placeholder)}"
+        >${escapeHtml(field.value)}</textarea>
+      </label>
+    `;
+  }
+
+  if (field.type === "select" && field.choices && field.choices.length > 0) {
+    const options = field.choices
+      .map((choice) => {
+        const selected = String(choice) === String(field.value) ? "selected" : "";
+
+        return `<option value="${escapeHtml(choice)}" ${selected}>${escapeHtml(choice)}</option>`;
+      })
+      .join("");
+
+    return `
+      <label class="interview-question-item">
+        <span>${escapeHtml(field.label)} ${requiredMark}</span>
+        ${helpHtml}
+        <select data-interview-field="${escapeHtml(field.key)}">
+          <option value="">Не выбрано</option>
+          ${options}
+        </select>
+      </label>
+    `;
   }
 
   return `
-ИСХОДНЫЙ ЗАПРОС:
-${requestText}
+    <label class="interview-question-item">
+      <span>${escapeHtml(field.label)} ${requiredMark}</span>
+      ${helpHtml}
+      <input
+        type="${field.type === "date" ? "date" : "text"}"
+        data-interview-field="${escapeHtml(field.key)}"
+        value="${escapeHtml(field.value)}"
+        placeholder="${escapeHtml(field.placeholder)}"
+      />
+    </label>
+  `;
+}
 
-ДОПОЛНИТЕЛЬНЫЕ ДАННЫЕ ОТ ПОЛЬЗОВАТЕЛЯ:
-${additionalText}
+function collectInterviewAnswers() {
+  if (!interviewQuestionsBox) {
+    return {};
+  }
 
-ЗАДАЧА:
-С учётом дополнительных данных повторно проверь обязательные данные и подготовь более полный черновик документа.
-`.trim();
+  const controls = interviewQuestionsBox.querySelectorAll("[data-interview-field]");
+  const answers = {};
+
+  controls.forEach((control) => {
+    const key = control.dataset.interviewField || "";
+    const value = control.value.trim();
+
+    if (key && value) {
+      answers[key] = value;
+    }
+  });
+
+  return answers;
+}
+
+function renderDocumentSources(sources) {
+  if (!sources || sources.length === 0) {
+    documentSourcesBox.innerHTML = "<p>Материалы не найдены.</p>";
+    return;
+  }
+
+  documentSourcesBox.innerHTML = sources
+    .slice(0, 5)
+    .map((source, index) => {
+      return `
+        <div class="source-item">
+          <strong>${index + 1}. ${escapeHtml(source.title || "Без названия")}</strong>
+          <span>${escapeHtml(source.document_type || "Материал")}</span>
+          ${source.source_url ? `<small>${escapeHtml(source.source_url)}</small>` : ""}
+        </div>
+      `;
+    })
+    .join("");
 }
 
 function getSelectedClientName() {
@@ -313,76 +395,4 @@ function escapeHtml(value) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
-}
-
-function renderDocumentQuestions(missingFields) {
-  if (!documentQuestionsPanel || !documentQuestionsBox) {
-    return;
-  }
-
-  if (!missingFields || missingFields.length === 0) {
-    documentQuestionsPanel.classList.add("is-hidden");
-    documentQuestionsBox.innerHTML = "";
-    return;
-  }
-
-  documentQuestionsPanel.classList.remove("is-hidden");
-
-  documentQuestionsBox.innerHTML = missingFields
-    .map((field) => {
-      const key = field.key || "";
-      const label = field.label || key;
-      const savedValue = currentMissingFieldAnswers[key] || "";
-
-      return `
-        <label class="document-question-item">
-          <span>${escapeHtml(label)}</span>
-          <input
-            type="text"
-            data-missing-field-key="${escapeHtml(key)}"
-            value="${escapeHtml(savedValue)}"
-            placeholder="Введите значение, если известно"
-          />
-        </label>
-      `;
-    })
-    .join("");
-
-  documentQuestionsBox
-    .querySelectorAll("[data-missing-field-key]")
-    .forEach((input) => {
-      input.addEventListener("input", () => {
-        currentMissingFieldAnswers[input.dataset.missingFieldKey] = input.value.trim();
-      });
-    });
-}
-
-function buildStructuredAnswersText() {
-  if (!documentQuestionsBox) {
-    return "";
-  }
-
-  const inputs = documentQuestionsBox.querySelectorAll("[data-missing-field-key]");
-  const lines = [];
-
-  inputs.forEach((input) => {
-    const key = input.dataset.missingFieldKey || "";
-    const value = input.value.trim();
-
-    if (!value) {
-      return;
-    }
-
-    currentMissingFieldAnswers[key] = value;
-    lines.push(`${key}: ${value}`);
-  });
-
-  if (lines.length === 0) {
-    return "";
-  }
-
-  return `
-ОТВЕТЫ НА УТОЧНЯЮЩИЕ ВОПРОСЫ:
-${lines.join("\n")}
-`.trim();
 }

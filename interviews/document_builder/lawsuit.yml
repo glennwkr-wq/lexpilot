@@ -1,0 +1,69 @@
+family: lawsuit
+label: Исковое заявление
+template: lawsuit_generic.docx
+template_path: document_templates/docx/lawsuits/lawsuit_generic.docx
+source: interviews/document_builder/lawsuit.yml
+
+fields:
+  - key: court
+    label: Суд
+    type: text
+    required: true
+
+  - key: plaintiff
+    label: Истец
+    type: text
+    required: true
+
+  - key: defendant
+    label: Ответчик
+    type: text
+    required: true
+
+  - key: claims
+    label: Исковые требования
+    type: textarea
+    required: true
+
+  - key: facts
+    label: Фактические обстоятельства
+    type: textarea
+    required: true
+
+  - key: claim_price
+    label: Цена иска
+    type: text
+    required: true
+
+  - key: state_duty
+    label: Госпошлина
+    type: text
+    required: false
+
+  - key: pretrial_claim
+    label: Досудебный порядок
+    type: textarea
+    required: false
+
+  - key: evidence
+    label: Доказательства
+    type: textarea
+    required: false
+
+  - key: attachments
+    label: Приложения
+    type: textarea
+    required: false
+
+sections:
+  - title: Исковое заявление
+    body: |
+      Суд: {{ court }}
+      Истец: {{ plaintiff }}
+      Ответчик: {{ defendant }}
+
+      Обстоятельства:
+      {{ facts }}
+
+      Требования:
+      {{ claims }}

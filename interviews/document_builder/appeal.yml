@@ -1,0 +1,65 @@
+family: appeal
+label: Апелляционная жалоба
+template: appeal_generic.docx
+template_path: document_templates/docx/appeals/appeal_generic.docx
+source: interviews/document_builder/appeal.yml
+
+fields:
+  - key: appeal_court
+    label: Апелляционный суд
+    type: text
+    required: true
+
+  - key: first_instance_court
+    label: Суд первой инстанции
+    type: text
+    required: true
+
+  - key: case_number
+    label: Номер дела
+    type: text
+    required: true
+
+  - key: applicant
+    label: Заявитель жалобы
+    type: text
+    required: true
+
+  - key: decision
+    label: Какой судебный акт обжалуется
+    type: textarea
+    required: true
+
+  - key: decision_date
+    label: Дата судебного акта
+    type: text
+    required: false
+
+  - key: appeal_arguments
+    label: Доводы апелляционной жалобы
+    type: textarea
+    required: true
+
+  - key: grounds
+    label: Нарушения суда первой инстанции
+    type: textarea
+    required: false
+
+  - key: requested_result
+    label: Что просим у апелляции
+    type: textarea
+    required: false
+
+  - key: attachments
+    label: Приложения
+    type: textarea
+    required: false
+
+sections:
+  - title: Апелляционная жалоба
+    body: |
+      Обжалуемый акт:
+      {{ decision }}
+
+      Доводы:
+      {{ appeal_arguments }}

@@ -1,0 +1,65 @@
+family: complaint
+label: Жалоба
+template: complaint_generic.docx
+template_path: document_templates/docx/complaints/complaint_generic.docx
+source: interviews/document_builder/complaint.yml
+
+fields:
+  - key: addressee
+    label: Куда подается жалоба
+    type: text
+    required: true
+
+  - key: applicant
+    label: Заявитель
+    type: text
+    required: true
+
+  - key: authority
+    label: Орган или должностное лицо
+    type: text
+    required: false
+
+  - key: challenged_action
+    label: Что обжалуется
+    type: textarea
+    required: true
+
+  - key: decision_date
+    label: Дата решения, действия или бездействия
+    type: text
+    required: false
+
+  - key: grounds
+    label: Основания жалобы
+    type: textarea
+    required: true
+
+  - key: request
+    label: Что просим
+    type: textarea
+    required: true
+
+  - key: evidence
+    label: Доказательства
+    type: textarea
+    required: false
+
+  - key: attachments
+    label: Приложения
+    type: textarea
+    required: false
+
+sections:
+  - title: Жалоба
+    body: |
+      Заявитель: {{ applicant }}
+
+      Обжалуется:
+      {{ challenged_action }}
+
+      Основания:
+      {{ grounds }}
+
+      Просьба:
+      {{ request }}

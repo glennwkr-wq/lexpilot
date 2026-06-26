@@ -1,0 +1,55 @@
+family: response
+label: Отзыв / возражения
+template: response_generic.docx
+template_path: document_templates/docx/responses/response_generic.docx
+source: interviews/document_builder/response.yml
+
+fields:
+  - key: court
+    label: Суд
+    type: text
+    required: true
+
+  - key: case_number
+    label: Номер дела
+    type: text
+    required: true
+
+  - key: respondent
+    label: Лицо, подающее отзыв
+    type: text
+    required: true
+
+  - key: opponent
+    label: Процессуальный оппонент
+    type: text
+    required: true
+
+  - key: position
+    label: Позиция по требованиям
+    type: textarea
+    required: true
+
+  - key: arguments
+    label: Возражения по существу
+    type: textarea
+    required: false
+
+  - key: evidence
+    label: Доказательства
+    type: textarea
+    required: false
+
+  - key: attachments
+    label: Приложения
+    type: textarea
+    required: false
+
+sections:
+  - title: Отзыв / возражения
+    body: |
+      Позиция:
+      {{ position }}
+
+      Возражения:
+      {{ arguments }}

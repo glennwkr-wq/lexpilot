@@ -2,16 +2,16 @@
 
 {% block content %}
 <section class="page-header">
-  <p class="eyebrow">LexPilot Drafting</p>
+  <p class="eyebrow">LexPilot Interview Drafting</p>
   <h1>Генератор документов</h1>
   <p>
-    Опишите задачу свободным текстом. LexPilot определит тип документа,
-    проверит базу знаний и подготовит рабочий черновик для юриста.
+    Новый генератор работает как юридическое интервью: определяет тип документа,
+    собирает обязательные данные, показывает только недостающие вопросы и формирует Word по шаблону.
   </p>
 </section>
 
-<section class="ask-layout">
-  <div class="ask-panel">
+<section class="interview-layout">
+  <div class="interview-panel">
     <label for="builderClientId">Клиент</label>
     <select id="builderClientId" class="builder-client-select">
       <option value="">Без выбранного клиента</option>
@@ -30,57 +30,59 @@
       {% endfor %}
     </select>
 
-    <p class="hint">
-      Если выбрать клиента, LexPilot учтёт его реквизиты при подготовке черновика.
-      Если документ готовится не от имени клиента, оставьте поле пустым.
-    </p>
+    <div class="interview-note">
+      Выбранный клиент используется только как источник данных. LexPilot не считает автоматически,
+      что клиент является истцом, заявителем или отправителем документа.
+    </div>
 
-    <label for="documentRequest">Исходные данные</label>    
+    <label for="documentRequest">Задача юриста</label>
     <textarea
       id="documentRequest"
       placeholder="Например: подготовь претензию о взыскании задолженности по договору поставки. Поставщик ООО Ромашка, покупатель ООО Вектор, долг 450 000 руб., товар передан по УПД..."
     ></textarea>
 
-    <div id="documentQuestionsPanel" class="document-questions-panel is-hidden">
-      <div class="document-questions-header">
-        <div>
-          <strong>Уточнения для документа</strong>
-          <p>
-            LexPilot нашёл недостающие данные. Заполните только известные поля,
-            затем снова нажмите «Сформировать документ».
-          </p>
-        </div>
+    <div id="interviewQuestionsPanel" class="interview-questions-panel is-hidden">
+      <div class="interview-section-title">
+        <span>Следующий шаг</span>
+        <strong>Уточните недостающие данные</strong>
+        <p>
+          Заполните только те поля, которые известны. После повторного нажатия LexPilot обновит данные без повторного полного анализа запроса.
+        </p>
       </div>
 
-      <div id="documentQuestionsBox" class="document-questions-box"></div>
+      <div id="interviewQuestionsBox" class="interview-questions-box"></div>
     </div>
 
     <div class="document-builder-actions">
-      <button id="generateDocumentButton" type="button">Сформировать документ</button>
+      <button id="generateDocumentButton" type="button">Начать интервью</button>
       <button id="downloadDocumentButton" class="secondary" type="button" disabled>
         Скачать Word
       </button>
     </div>
 
     <p class="hint">
-      LexPilot готовит черновик. Финальная проверка и правки остаются за юристом.
+      Финальный документ формируется по Word-шаблону. Проверка и правки остаются за юристом.
     </p>
   </div>
 
-  <div class="answer-panel">
+  <div class="interview-result-panel">
     <div class="answer-header">
-      <h2>Черновик документа</h2>
+      <h2>Состояние документа</h2>
       <span id="documentStatusBadge">Ожидает данные</span>
     </div>
 
+    <div id="interviewProgressBox" class="interview-progress-box">
+      Здесь появится статус интервью.
+    </div>
+
     <div id="documentDraftBox" class="answer-box">
-      Здесь появится черновик документа.
+      Здесь появится предварительная структура документа.
     </div>
 
     <div class="sources-block">
-      <h3>Использованные материалы</h3>
+      <h3>Используемые материалы</h3>
       <div id="documentSourcesBox" class="sources-box">
-        Источники появятся после генерации.
+        Материалы появятся после запуска интервью.
       </div>
     </div>
   </div>

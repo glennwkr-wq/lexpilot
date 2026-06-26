@@ -14,3 +14,4 @@ huggingface_hub
 tqdm
 numpy
 docxtpl
+PyYAML

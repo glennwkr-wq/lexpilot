@@ -14,6 +14,7 @@ DOCX_TEMPLATE_MAP = {
     "response": PROJECT_ROOT / "document_templates" / "docx" / "responses" / "response_generic.docx",
     "appeal": PROJECT_ROOT / "document_templates" / "docx" / "appeals" / "appeal_generic.docx",
     "cassation": PROJECT_ROOT / "document_templates" / "docx" / "cassations" / "cassation_generic.docx",
+    "unknown": PROJECT_ROOT / "document_templates" / "docx" / "claims" / "claim_generic.docx",
 }
 
 
@@ -106,6 +107,10 @@ def build_docx_context(
         "dates": dates,
         "risks": risks,
         "notes": notes,
+        "amounts_text": _list_to_text(amounts),
+        "dates_text": _list_to_text(dates),
+        "risks_text": _list_to_text(risks),
+        "notes_text": _list_to_text(notes),
     }
 
     for key, value in fields.items():
@@ -114,85 +119,68 @@ def build_docx_context(
     for key, value in parties.items():
         context[f"party_{key}"] = _normalize_template_value(value)
 
-    context["amounts_text"] = _list_to_text(amounts)
-    context["dates_text"] = _list_to_text(dates)
-    context["risks_text"] = _list_to_text(risks)
-    context["notes_text"] = _list_to_text(notes)
+    defaults = {
+        "sender": "[УКАЗАТЬ_ОТПРАВИТЕЛЯ]",
+        "recipient": "[УКАЗАТЬ_ПОЛУЧАТЕЛЯ]",
+        "claim_basis": "[УКАЗАТЬ_ОСНОВАНИЕ_ТРЕБОВАНИЙ]",
+        "demand": "[УКАЗАТЬ_ТРЕБОВАНИЕ]",
+        "deadline": "[УКАЗАТЬ_СРОК]",
+        "contract_number": "[УКАЗАТЬ_НОМЕР_ДОГОВОРА]",
+        "contract_date": "[УКАЗАТЬ_ДАТУ_ДОГОВОРА]",
+        "debt_amount": "[УКАЗАТЬ_СУММУ_ДОЛГА]",
+        "penalty_amount": "[УКАЗАТЬ_СУММУ_НЕУСТОЙКИ]",
+        "evidence": "[УКАЗАТЬ_ДОКАЗАТЕЛЬСТВА]",
+        "attachments": "[УКАЗАТЬ_ПРИЛОЖЕНИЯ]",
+        "court": "[УКАЗАТЬ_СУД]",
+        "plaintiff": "[УКАЗАТЬ_ИСТЦА]",
+        "defendant": "[УКАЗАТЬ_ОТВЕТЧИКА]",
+        "claims": "[УКАЗАТЬ_ИСКОВЫЕ_ТРЕБОВАНИЯ]",
+        "facts": "[УКАЗАТЬ_ОБСТОЯТЕЛЬСТВА]",
+        "claim_price": "[УКАЗАТЬ_ЦЕНУ_ИСКА]",
+        "state_duty": "[УКАЗАТЬ_ГОСПОШЛИНУ]",
+        "pretrial_claim": "[УКАЗАТЬ_ДОСУДЕБНЫЙ_ПОРЯДОК]",
+        "court_or_body": "[УКАЗАТЬ_СУД_ИЛИ_ОРГАН]",
+        "case_number": "[УКАЗАТЬ_НОМЕР_ДЕЛА]",
+        "applicant": "[УКАЗАТЬ_ЗАЯВИТЕЛЯ]",
+        "request": "[УКАЗАТЬ_ПРОСЬБУ]",
+        "grounds": "[УКАЗАТЬ_ОСНОВАНИЯ]",
+        "participants": "[УКАЗАТЬ_УЧАСТНИКОВ]",
+        "addressee": "[УКАЗАТЬ_АДРЕСАТА]",
+        "authority": "[УКАЗАТЬ_ОРГАН_ИЛИ_ДОЛЖНОСТНОЕ_ЛИЦО]",
+        "challenged_action": "[УКАЗАТЬ_ЧТО_ОБЖАЛУЕТСЯ]",
+        "decision_date": "[УКАЗАТЬ_ДАТУ_РЕШЕНИЯ_ИЛИ_ДЕЙСТВИЯ]",
+        "respondent": "[УКАЗАТЬ_ЛИЦО_ПОДАЮЩЕЕ_ОТЗЫВ]",
+        "opponent": "[УКАЗАТЬ_ОППОНЕНТА]",
+        "position": "[УКАЗАТЬ_ПОЗИЦИЮ_ПО_ТРЕБОВАНИЯМ]",
+        "arguments": "[УКАЗАТЬ_ВОЗРАЖЕНИЯ]",
+        "appeal_court": "[УКАЗАТЬ_АПЕЛЛЯЦИОННЫЙ_СУД]",
+        "first_instance_court": "[УКАЗАТЬ_СУД_ПЕРВОЙ_ИНСТАНЦИИ]",
+        "decision": "[УКАЗАТЬ_ОБЖАЛУЕМЫЙ_СУДЕБНЫЙ_АКТ]",
+        "appeal_arguments": "[УКАЗАТЬ_ДОВОДЫ_АПЕЛЛЯЦИИ]",
+        "requested_result": "[УКАЗАТЬ_ПРОСИТЕЛЬНУЮ_ЧАСТЬ]",
+        "cassation_court": "[УКАЗАТЬ_КАССАЦИОННЫЙ_СУД]",
+        "challenged_acts": "[УКАЗАТЬ_ОБЖАЛУЕМЫЕ_СУДЕБНЫЕ_АКТЫ]",
+        "material_violations": "[УКАЗАТЬ_СУЩЕСТВЕННЫЕ_НАРУШЕНИЯ]",
+    }
 
-    # Претензия
-    context.setdefault("sender", "[УКАЗАТЬ_ОТПРАВИТЕЛЯ]")
-    context.setdefault("recipient", "[УКАЗАТЬ_ПОЛУЧАТЕЛЯ]")
-    context.setdefault("claim_basis", "[УКАЗАТЬ_ОСНОВАНИЕ_ТРЕБОВАНИЙ]")
-    context.setdefault("demand", "[УКАЗАТЬ_ТРЕБОВАНИЕ]")
-    context.setdefault("deadline", "[УКАЗАТЬ_СРОК]")
-    context.setdefault("contract_number", "[УКАЗАТЬ_НОМЕР_ДОГОВОРА]")
-    context.setdefault("contract_date", "[УКАЗАТЬ_ДАТУ_ДОГОВОРА]")
-    context.setdefault("debt_amount", "[УКАЗАТЬ_СУММУ_ДОЛГА]")
-    context.setdefault("penalty_amount", "[УКАЗАТЬ_СУММУ_НЕУСТОЙКИ]")
-    context.setdefault("evidence", "[УКАЗАТЬ_ДОКАЗАТЕЛЬСТВА]")
-    context.setdefault("attachments", "[УКАЗАТЬ_ПРИЛОЖЕНИЯ]")
-
-    # Иск
-    context.setdefault("court", "[УКАЗАТЬ_СУД]")
-    context.setdefault("plaintiff", "[УКАЗАТЬ_ИСТЦА]")
-    context.setdefault("defendant", "[УКАЗАТЬ_ОТВЕТЧИКА]")
-    context.setdefault("claims", "[УКАЗАТЬ_ИСКОВЫЕ_ТРЕБОВАНИЯ]")
-    context.setdefault("facts", "[УКАЗАТЬ_ОБСТОЯТЕЛЬСТВА]")
-    context.setdefault("claim_price", "[УКАЗАТЬ_ЦЕНУ_ИСКА]")
-    context.setdefault("state_duty", "[УКАЗАТЬ_ГОСПОШЛИНУ]")
-    context.setdefault("pretrial_claim", "[УКАЗАТЬ_ДОСУДЕБНЫЙ_ПОРЯДОК]")
-
-    # Ходатайство
-    context.setdefault("court_or_body", "[УКАЗАТЬ_СУД_ИЛИ_ОРГАН]")
-    context.setdefault("case_number", "[УКАЗАТЬ_НОМЕР_ДЕЛА]")
-    context.setdefault("applicant", "[УКАЗАТЬ_ЗАЯВИТЕЛЯ]")
-    context.setdefault("request", "[УКАЗАТЬ_ПРОСЬБУ]")
-    context.setdefault("grounds", "[УКАЗАТЬ_ОСНОВАНИЯ]")
-    context.setdefault("participants", "[УКАЗАТЬ_УЧАСТНИКОВ]")
-
-    # Жалоба
-    context.setdefault("addressee", "[УКАЗАТЬ_АДРЕСАТА]")
-    context.setdefault("authority", "[УКАЗАТЬ_ОРГАН_ИЛИ_ДОЛЖНОСТНОЕ_ЛИЦО]")
-    context.setdefault("challenged_action", "[УКАЗАТЬ_ЧТО_ОБЖАЛУЕТСЯ]")
-    context.setdefault("decision_date", "[УКАЗАТЬ_ДАТУ_РЕШЕНИЯ_ИЛИ_ДЕЙСТВИЯ]")
-
-    # Отзыв / возражения
-    context.setdefault("respondent", "[УКАЗАТЬ_ЛИЦО_ПОДАЮЩЕЕ_ОТЗЫВ]")
-    context.setdefault("opponent", "[УКАЗАТЬ_ОППОНЕНТА]")
-    context.setdefault("position", "[УКАЗАТЬ_ПОЗИЦИЮ_ПО_ТРЕБОВАНИЯМ]")
-    context.setdefault("arguments", "[УКАЗАТЬ_ВОЗРАЖЕНИЯ]")
-
-    # Апелляция
-    context.setdefault("appeal_court", "[УКАЗАТЬ_АПЕЛЛЯЦИОННЫЙ_СУД]")
-    context.setdefault("first_instance_court", "[УКАЗАТЬ_СУД_ПЕРВОЙ_ИНСТАНЦИИ]")
-    context.setdefault("decision", "[УКАЗАТЬ_ОБЖАЛУЕМЫЙ_СУДЕБНЫЙ_АКТ]")
-    context.setdefault("appeal_arguments", "[УКАЗАТЬ_ДОВОДЫ_АПЕЛЛЯЦИИ]")
-    context.setdefault("requested_result", "[УКАЗАТЬ_ПРОСИТЕЛЬНУЮ_ЧАСТЬ]")
-
-    # Кассация
-    context.setdefault("cassation_court", "[УКАЗАТЬ_КАССАЦИОННЫЙ_СУД]")
-    context.setdefault("challenged_acts", "[УКАЗАТЬ_ОБЖАЛУЕМЫЕ_СУДЕБНЫЕ_АКТЫ]")
-    context.setdefault("material_violations", "[УКАЗАТЬ_СУЩЕСТВЕННЫЕ_НАРУШЕНИЯ]")
+    for key, value in defaults.items():
+        context.setdefault(key, value)
 
     return context
+
 
 def _normalize_template_value(value) -> str:
     if value is None:
         return ""
 
     if isinstance(value, list):
-        if not value:
-            return ""
-
         return "\n".join(str(item) for item in value)
 
     if isinstance(value, dict):
-        if not value:
-            return ""
-
         return "\n".join(f"{key}: {item}" for key, item in value.items())
 
     return str(value)
+
 
 def _list_to_text(items) -> str:
     if not items:

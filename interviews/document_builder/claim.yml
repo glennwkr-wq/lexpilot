@@ -1,0 +1,86 @@
+family: claim
+label: Претензия
+template: claim_generic.docx
+template_path: document_templates/docx/claims/claim_generic.docx
+source: interviews/document_builder/claim.yml
+
+fields:
+  - key: sender
+    label: Отправитель претензии
+    type: text
+    required: true
+    placeholder: ООО Ромашка
+    help: Укажите лицо, от имени которого направляется претензия.
+
+  - key: recipient
+    label: Получатель претензии
+    type: text
+    required: true
+    placeholder: ООО Вектор
+    help: Укажите адресата претензии.
+
+  - key: claim_basis
+    label: Основание требований
+    type: textarea
+    required: true
+    placeholder: Долг по договору поставки, товар передан по УПД, оплата не поступила.
+    help: Кратко опишите, из чего возникло требование.
+
+  - key: demand
+    label: Требование
+    type: textarea
+    required: true
+    placeholder: Оплатить задолженность в размере 450 000 руб.
+    help: Что адресат должен сделать.
+
+  - key: deadline
+    label: Срок исполнения требования
+    type: text
+    required: true
+    placeholder: 10 календарных дней с даты получения претензии
+
+  - key: contract_number
+    label: Номер договора
+    type: text
+    required: false
+
+  - key: contract_date
+    label: Дата договора
+    type: text
+    required: false
+
+  - key: debt_amount
+    label: Сумма задолженности
+    type: text
+    required: false
+
+  - key: penalty_amount
+    label: Сумма неустойки
+    type: text
+    required: false
+
+  - key: evidence
+    label: Доказательства
+    type: textarea
+    required: false
+    placeholder: УПД, акт сверки, переписка, банковская выписка
+
+  - key: attachments
+    label: Приложения
+    type: textarea
+    required: false
+
+sections:
+  - title: Претензия
+    body: |
+      Отправитель: {{ sender }}
+      Получатель: {{ recipient }}
+
+      Основание требований:
+      {{ claim_basis }}
+
+      Требование:
+      {{ demand }}
+
+      Срок исполнения:
+      {{ deadline }}
