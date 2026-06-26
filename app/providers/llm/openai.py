@@ -473,6 +473,138 @@ def generate_legal_answer(
     _log_openai_usage("generate_legal_answer", "gpt-4.1-mini", response)
     return response.choices[0].message.content or ""
 
+def generate_document_intake_json(
+    user_request: str,
+    intake_schema: dict,
+    client_context: str = "",
+    detected_family: str = "unknown",
+    detected_document_type: str = "",
+) -> dict:
+    if not settings.OPENAI_API_KEY:
+        return {
+            "fields": {},
+            "parties": {},
+            "amounts": [],
+            "dates": [],
+            "risks": [],
+            "notes": ["OpenAI API key не настроен."],
+        }
+
+    system_prompt = """
+Ты LexPilot — модуль структурированного извлечения данных для генератора юридических документов.
+
+Твоя задача — не писать документ, а извлечь из запроса юриста данные для intake-формы.
+
+Правила:
+1. Верни строго JSON без markdown.
+2. Не выдумывай факты, даты, суммы, реквизиты, суды, адреса, ИНН, ОГРН, номера дел и номера договоров.
+3. Если данных нет, верни пустую строку, пустой список или значение "не указано".
+4. Не меняй роли сторон местами.
+5. Если выбран клиент, используй его данные только как возможную сторону документа.
+6. Не считай автоматически, что выбранный клиент — истец, заявитель, кредитор или отправитель.
+7. Если роль клиента неясна, добавь это в notes.
+8. Все ключи из required_fields и helpful_fields должны присутствовать в fields.
+9. Дополнительные найденные сведения можно добавить в parties, amounts, dates, risks, notes.
+"""
+
+    user_prompt = f"""
+ЗАПРОС ЮРИСТА:
+{user_request}
+
+ОПРЕДЕЛЕННЫЙ ТИП:
+family: {detected_family}
+document_type: {detected_document_type or "не определен"}
+
+ДАННЫЕ ВЫБРАННОГО КЛИЕНТА:
+{client_context if client_context else "Клиент не выбран."}
+
+INTAKE-СХЕМА:
+{json.dumps(intake_schema, ensure_ascii=False, indent=2)}
+
+Верни JSON строго такого вида:
+{{
+  "fields": {{
+    "ключ_поля": "значение или не указано"
+  }},
+  "parties": {{
+    "роль": "сторона"
+  }},
+  "amounts": [
+    {{
+      "label": "что за сумма",
+      "value": "сумма"
+    }}
+  ],
+  "dates": [
+    {{
+      "label": "что за дата",
+      "value": "дата"
+    }}
+  ],
+  "risks": [
+    "важное замечание по данным"
+  ],
+  "notes": [
+    "что нужно учесть при генерации"
+  ]
+}}
+"""
+
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {
+                    "role": "system",
+                    "content": system_prompt.strip(),
+                },
+                {
+                    "role": "user",
+                    "content": user_prompt.strip(),
+                },
+            ],
+            temperature=0,
+            max_tokens=1200,
+            timeout=20,
+            response_format={"type": "json_object"},
+        )
+        _log_openai_usage("generate_document_intake_json", "gpt-4o-mini", response)
+    except Exception as error:
+        return {
+            "fields": {},
+            "parties": {},
+            "amounts": [],
+            "dates": [],
+            "risks": [],
+            "notes": [f"Ошибка извлечения данных: {error}"],
+        }
+
+    content = response.choices[0].message.content or "{}"
+
+    try:
+        parsed = json.loads(content)
+    except Exception:
+        return {
+            "fields": {},
+            "parties": {},
+            "amounts": [],
+            "dates": [],
+            "risks": [],
+            "notes": ["Модель вернула невалидный JSON."],
+        }
+
+    if not isinstance(parsed, dict):
+        return {
+            "fields": {},
+            "parties": {},
+            "amounts": [],
+            "dates": [],
+            "risks": [],
+            "notes": ["Модель вернула JSON не в виде объекта."],
+        }
+
+    return parsed
+
 def generate_document_draft(
     user_request: str,
     knowledge_context: str = "",
@@ -529,26 +661,32 @@ document_type: {detected_document_type or "не определен"}
 
 Сформируй результат строго в формате:
 
-## 1. Тип документа
+1. Тип документа
 
 Укажи определенный тип документа.
 
-## 2. Проверка обязательных данных
+2. Проверка обязательных данных
 
-Проверь запрос по intake form, если она есть в материалах.
+Используй INTAKE-СХЕМУ, ИЗВЛЕЧЕННЫЕ ДАННЫЕ и НЕДОСТАЮЩИЕ ОБЯЗАТЕЛЬНЫЕ ДАННЫЕ из материалов базы LexPilot.
 
 Раздели данные на:
 - данные есть;
 - данных не хватает.
 
-## 3. Черновик документа
+Если обязательных данных не хватает, перечисли только конкретные недостающие поля.
+Не задавай общие вопросы вроде "уточните обстоятельства".
 
-Подготовь документ по найденному шаблону.
+3. Черновик документа
+
+Подготовь документ по найденной структуре.
 
 Если каких-то данных нет, используй плейсхолдеры вида:
 [УКАЗАТЬ_...]
 
-## 4. Что проверить юристу
+Не вставляй разделы "тип документа" и "проверка данных" внутрь самого юридического документа.
+Юридический документ должен начинаться как реальный документ: с адресата, сторон, названия или вводной части.
+
+4. Что проверить юристу
 
 Краткий список проверки перед использованием.
 """
@@ -597,19 +735,19 @@ def analyze_legal_document(
 
 Сформируй анализ строго в формате:
 
-## 1. Тип документа
+1. Тип документа
 
-## 2. Краткое содержание
+2. Краткое содержание
 
-## 3. Ключевые условия / обстоятельства
+3. Ключевые условия / обстоятельства
 
-## 4. Потенциальные риски
+4. Потенциальные риски
 
-## 5. Спорные или слабые места
+5. Спорные или слабые места
 
-## 6. Что проверить юристу
+6. Что проверить юристу
 
-## 7. Практические рекомендации
+7. Практические рекомендации
 """
 
     response = client.chat.completions.create(

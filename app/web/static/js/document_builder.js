@@ -11,13 +11,72 @@ const documentStatusBadge = document.getElementById("documentStatusBadge");
 let currentDocumentDraft = "";
 let currentDocumentTitle = "Юридический документ";
 let currentClientName = "";
+let currentDocumentFamily = "";
+let currentExtractedData = {};
 
 function setDocumentLoading(isLoading) {
   generateDocumentButton.disabled = isLoading;
   generateDocumentButton.textContent = isLoading
-    ? "LexPilot готовит документ..."
+    ? "LexPilot собирает данные..."
     : "Сформировать документ";
-  documentStatusBadge.textContent = isLoading ? "Генерация" : "Готово";
+
+  if (isLoading) {
+    documentStatusBadge.textContent = "Проверка данных";
+  }
+}
+
+function renderDocumentMeta(data) {
+  const label = data.detected_label || buildDocumentTitle(data);
+  const completeness = data.completeness || {};
+  const missingFields = data.missing_required_fields || [];
+  const extractedData = data.extracted_data || {};
+  const fields = extractedData.fields || {};
+
+  const filledFields = Object.entries(fields)
+    .filter(([, value]) => value && value !== "не указано")
+    .slice(0, 8);
+
+  const filledHtml = filledFields.length
+    ? filledFields
+        .map(([key, value]) => `<li><strong>${escapeHtml(key)}:</strong> ${escapeHtml(String(value))}</li>`)
+        .join("")
+    : "<li>LexPilot не нашел явно заполненных полей.</li>";
+
+  const missingHtml = missingFields.length
+    ? missingFields
+        .map((field) => `<li>${escapeHtml(field.label || field.key)}</li>`)
+        .join("")
+    : "<li>Критичных пропусков по обязательным полям не найдено.</li>";
+
+  return `
+    <div class="document-meta-panel">
+      <div class="document-meta-grid">
+        <div>
+          <span class="meta-label">Тип документа</span>
+          <strong>${escapeHtml(label)}</strong>
+        </div>
+        <div>
+          <span class="meta-label">Заполненность</span>
+          <strong>${Number(completeness.percent || 0)}%</strong>
+        </div>
+        <div>
+          <span class="meta-label">Статус</span>
+          <strong>${escapeHtml(completeness.label || "Проверка выполнена")}</strong>
+        </div>
+      </div>
+
+      <div class="document-check-grid">
+        <div>
+          <h4>Найденные данные</h4>
+          <ul>${filledHtml}</ul>
+        </div>
+        <div>
+          <h4>Чего не хватает</h4>
+          <ul>${missingHtml}</ul>
+        </div>
+      </div>
+    </div>
+  `;
 }
 
 function renderDocumentSources(sources) {
@@ -27,12 +86,12 @@ function renderDocumentSources(sources) {
   }
 
   documentSourcesBox.innerHTML = sources
+    .slice(0, 5)
     .map((source, index) => {
       return `
         <div class="source-item">
-          <strong>${index + 1}. ${source.title || "Без названия"}</strong>
-          <span>${source.document_type || "unknown"}</span>
-          <small>${source.source_url || ""}</small>
+          <strong>${index + 1}. ${escapeHtml(source.title || "Без названия")}</strong>
+          <span>${escapeHtml(source.document_type || "Материал базы")}</span>
         </div>
       `;
     })
@@ -55,13 +114,15 @@ generateDocumentButton.addEventListener("click", async () => {
   currentDocumentDraft = "";
   currentDocumentTitle = "Юридический документ";
   currentClientName = getSelectedClientName();
+  currentDocumentFamily = "";
+  currentExtractedData = {};
 
   if (downloadDocumentButton) {
     downloadDocumentButton.disabled = true;
   }
 
   setDocumentLoading(true);
-  documentDraftBox.textContent = "Идёт поиск по базе знаний и подготовка черновика...";
+  documentDraftBox.textContent = "Идёт определение типа документа, извлечение данных и подготовка черновика...";
   documentSourcesBox.textContent = "Поиск материалов...";
 
   try {
@@ -86,14 +147,27 @@ generateDocumentButton.addEventListener("click", async () => {
     }
 
     currentDocumentDraft = data.draft || "";
-    currentDocumentTitle = buildDocumentTitle(data);
+    currentDocumentTitle = data.detected_label || buildDocumentTitle(data);
     currentClientName = data.client?.full_name || getSelectedClientName();
+    currentDocumentFamily = data.detected_family || "";
+    currentExtractedData = data.extracted_data || {};
 
-    documentDraftBox.textContent = currentDocumentDraft || "Документ не был сформирован.";
+    documentDraftBox.innerHTML = `
+      ${renderDocumentMeta(data)}
+      <pre class="document-draft-text">${escapeHtml(currentDocumentDraft || "Документ не был сформирован.")}</pre>
+    `;
+
     renderDocumentSources(data.sources);
-    documentStatusBadge.textContent = "Черновик готов";
+
+    const completeness = data.completeness || {};
+    const missingCount = Number(completeness.missing_count || 0);
+
     if (data.saved_document) {
       documentStatusBadge.textContent = "Черновик сохранён в дело";
+    } else if (missingCount > 0) {
+      documentStatusBadge.textContent = "Нужны уточнения";
+    } else {
+      documentStatusBadge.textContent = "Черновик готов";
     }
 
     if (downloadDocumentButton) {
@@ -125,6 +199,13 @@ if (downloadDocumentButton) {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
+          content: currentDocumentDraft,
+          title: currentDocumentTitle,
+          client_name: currentClientName,
+          document_family: currentDocumentFamily,
+          extracted_data: currentExtractedData,
+        }),
+          body: JSON.stringify({
           content: currentDocumentDraft,
           title: currentDocumentTitle,
           client_name: currentClientName,
@@ -222,4 +303,13 @@ function sanitizeFilename(value) {
     .replace(/[\\/:*?"<>|]+/g, "_")
     .replace(/\s+/g, "_")
     .slice(0, 80) || "document";
+}
+
+function escapeHtml(value) {
+  return String(value || "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
 }

@@ -42,6 +42,10 @@ from app.services.documents.export_docx import (
     build_legal_docx,
     make_docx_filename,
 )
+from app.services.documents.docx_template_renderer import (
+    get_docx_template_info,
+    render_docx_template,
+)
 from app.services.documents.file_storage import (
     save_temp_file_and_extract,
     save_case_file,
@@ -708,6 +712,10 @@ def create_app() -> Flask:
                 "full_name": selected_client["full_name"],
             }
 
+        result["docx_template"] = get_docx_template_info(
+            result.get("detected_family")
+        )
+
         if result.get("status") == "ok" and case_id and result.get("draft"):
             saved_document = save_generated_document({
                 "case_id": case_id,
@@ -730,6 +738,26 @@ def create_app() -> Flask:
         content = (data.get("content") or "").strip()
         title = (data.get("title") or "Юридический документ").strip()
         client_name = (data.get("client_name") or "").strip()
+        document_family = (data.get("document_family") or "").strip()
+        extracted_data = data.get("extracted_data") or {}
+
+        if document_family and extracted_data:
+            try:
+                file_stream = render_docx_template(
+                    document_family=document_family,
+                    extracted_data=extracted_data,
+                    title=title,
+                    client_name=client_name,
+                )
+
+                return send_file(
+                    file_stream,
+                    mimetype=DOCX_MIME_TYPE,
+                    as_attachment=True,
+                    download_name=make_docx_filename(title),
+                )
+            except FileNotFoundError:
+                pass
 
         if not content:
             return jsonify({
@@ -749,7 +777,6 @@ def create_app() -> Flask:
             as_attachment=True,
             download_name=make_docx_filename(title),
         )
-
     @app.get("/api/generated-documents/<int:document_id>/docx")
     def api_download_generated_document_docx(document_id: int):
         try:

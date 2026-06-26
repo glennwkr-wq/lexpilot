@@ -1671,3 +1671,68 @@ button.secondary {
     grid-template-columns: 1fr;
   }
 }
+
+.document-meta-panel {
+  margin-bottom: 18px;
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 16px;
+}
+
+.document-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.document-meta-grid div,
+.document-check-grid div {
+  background: #fafafa;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 13px;
+}
+
+.meta-label {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.document-check-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.document-check-grid h4 {
+  margin: 0 0 8px;
+}
+
+.document-check-grid ul {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.document-draft-text {
+  margin: 0;
+  white-space: pre-wrap;
+  font-family: Arial, sans-serif;
+  line-height: 1.65;
+  color: var(--text);
+}
+
+@media (max-width: 900px) {
+  .document-meta-grid,
+  .document-check-grid {
+    grid-template-columns: 1fr;
+  }
+}
