@@ -12,7 +12,7 @@ class Settings:
 
     OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
     EMBEDDING_MODEL: str = os.getenv("EMBEDDING_MODEL", "text-embedding-3-small")
-    RERANK_MODEL: str = os.getenv("RERANK_MODEL", "gpt-4.1-mini")
+    RERANK_MODEL: str = os.getenv("RERANK_MODEL", "gpt-4o-mini")
 
     ADMIN_EMAIL: str = os.getenv("ADMIN_EMAIL", "admin@example.com")
     ADMIN_PASSWORD: str = os.getenv("ADMIN_PASSWORD", "admin123")

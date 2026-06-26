@@ -15,7 +15,7 @@ function renderSources(sources) {
     sourcesBox.innerHTML = "<p>Релевантные федеральные источники не найдены.</p>";
     return;
   }
-
+  sources = sources.slice(0, 5);
   sourcesBox.innerHTML = sources
     .map((source, index) => {
       const groupLabel =

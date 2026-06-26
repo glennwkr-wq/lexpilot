@@ -80,14 +80,14 @@ def generate_legal_search_queries(user_question: str) -> list[str]:
 
     try:
         response = client.chat.completions.create(
-            model="gpt-4.1-mini",
+            model="gpt-4o-mini",
             messages=[
                 {"role": "system", "content": "Ты помогаешь формировать поисковые запросы по российскому законодательству."},
                 {"role": "user", "content": prompt.strip()},
             ],
             temperature=0.1,
         )
-        _log_openai_usage("generate_search_queries", "gpt-4.1-mini", response)
+        _log_openai_usage("generate_search_queries", "gpt-4o-mini", response)
 
     except Exception:
         return [user_question]
@@ -428,7 +428,7 @@ def generate_legal_answer(
 8. Разделяй статьи кодексов, федеральные правовые источники и локальные материалы юриста.
 9. Не обещай результат дела.
 10. Давай структурированный юридический ответ.
-11. Отделяй факты, правовую оценку, риски и рекомендации.
+11. Отделяй факты, правовую оценку и рекомендации.
 12. Любой итог является черновой правовой позицией и требует проверки юристом.
 """
 
@@ -439,25 +439,23 @@ def generate_legal_answer(
 ФРАГМЕНТЫ БАЗЫ ЗНАНИЙ LEXPILOT:
 {knowledge_context if knowledge_context else "Релевантные фрагменты базы знаний не найдены."}
 
-Сформируй ответ строго по структуре:
+Сформируй ответ строго по структуре без markdown-заголовков и без символов #:
 
-## 1. Краткий вывод
+1. Краткий вывод
 
-## 2. Нормативная основа
+2. Нормативная основа
 
 Перечисли конкретные найденные акты из переданных источников: название, номер, дату, орган, если они указаны.
 Не добавляй источники, которых нет в переданных фрагментах.
 
-## 3. Правовая логика
+3. Правовая логика
 
-## 4. Риски и слабые места
-
-## 5. Что проверить юристу
-
-## 6. Какие данные нужны дополнительно
+4. Что проверить юристу
 
 Если федеральных источников в переданном контексте нет, прямо напиши:
 "В федеральной базе LexPilot релевантные источники не найдены."
+
+Не добавляй финальную общую фразу о необходимости обратиться к актуальному законодательству, профильным комментариям или за дополнительной правовой позицией.
 """
 
     response = client.chat.completions.create(
@@ -613,7 +611,7 @@ def analyze_legal_document(
 """
 
     response = client.chat.completions.create(
-        model="gpt-4.1-mini",
+        model="gpt-4o-mini",
         messages=[
             {"role": "system", "content": system_prompt.strip()},
             {"role": "user", "content": user_prompt.strip()},

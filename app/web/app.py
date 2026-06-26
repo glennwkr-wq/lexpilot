@@ -532,8 +532,8 @@ def create_app() -> Flask:
             step_started = time.perf_counter()
             core_law_reranked = rerank_core_law_sources(
                 user_question=question,
-                sources=core_law_candidates[:20],
-                limit=8,
+                sources=core_law_candidates[:15],
+                limit=5,
             )
             mark_timing("core_law_rerank", step_started)
 
@@ -545,7 +545,7 @@ def create_app() -> Flask:
             mark_timing("core_law_gate", step_started)
 
             if is_core_law_sufficient(core_law_reranked) and core_gate.get("is_sufficient"):
-                core_law_results = core_law_reranked[:8]
+                core_law_results = core_law_reranked[:5]
                 search_route = "core_law_only"
             else:
                 search_route = "core_law_then_federal_law"
@@ -556,7 +556,7 @@ def create_app() -> Flask:
                 step_started = time.perf_counter()
                 federal_law_candidates = search_federal_law(
                     federal_query,
-                    limit=30,
+                    limit=15,
                     expanded_queries=federal_expanded_queries,
                     query_embedding=[],
                 )
@@ -573,8 +573,8 @@ def create_app() -> Flask:
                 step_started = time.perf_counter()
                 federal_law_results = rerank_federal_sources(
                     user_question=question,
-                    sources=combined_candidates,
-                    limit=8,
+                    sources=combined_candidates[:15],
+                    limit=5,
                 )
                 mark_timing("federal_law_rerank", step_started)
 
@@ -651,7 +651,7 @@ def create_app() -> Flask:
             "search_route": search_route,
             "openai_usage": openai_usage,
         }, flush=True)
-
+        all_sources = all_sources[:5]
         return jsonify({
             "status": "ok",
             "question": question,
