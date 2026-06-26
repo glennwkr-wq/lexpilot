@@ -1736,3 +1736,53 @@ button.secondary {
     grid-template-columns: 1fr;
   }
 }
+
+.document-questions-panel {
+  margin-top: 16px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 16px;
+  background: #fafafa;
+}
+
+.document-questions-panel.is-hidden {
+  display: none;
+}
+
+.document-questions-header strong {
+  display: block;
+  font-size: 16px;
+  margin-bottom: 6px;
+}
+
+.document-questions-header p {
+  margin: 0 0 14px;
+  color: var(--muted);
+  line-height: 1.45;
+  font-size: 14px;
+}
+
+.document-questions-box {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.document-question-item {
+  display: block;
+}
+
+.document-question-item span {
+  display: block;
+  font-weight: 700;
+  margin-bottom: 7px;
+}
+
+.document-question-item input {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 12px 13px;
+  font: inherit;
+  background: white;
+}

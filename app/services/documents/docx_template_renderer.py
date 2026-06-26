@@ -114,6 +114,12 @@ def build_docx_context(
     for key, value in parties.items():
         context[f"party_{key}"] = _normalize_template_value(value)
 
+    context["amounts_text"] = _list_to_text(amounts)
+    context["dates_text"] = _list_to_text(dates)
+    context["risks_text"] = _list_to_text(risks)
+    context["notes_text"] = _list_to_text(notes)
+
+    # Претензия
     context.setdefault("sender", "[УКАЗАТЬ_ОТПРАВИТЕЛЯ]")
     context.setdefault("recipient", "[УКАЗАТЬ_ПОЛУЧАТЕЛЯ]")
     context.setdefault("claim_basis", "[УКАЗАТЬ_ОСНОВАНИЕ_ТРЕБОВАНИЙ]")
@@ -126,6 +132,7 @@ def build_docx_context(
     context.setdefault("evidence", "[УКАЗАТЬ_ДОКАЗАТЕЛЬСТВА]")
     context.setdefault("attachments", "[УКАЗАТЬ_ПРИЛОЖЕНИЯ]")
 
+    # Иск
     context.setdefault("court", "[УКАЗАТЬ_СУД]")
     context.setdefault("plaintiff", "[УКАЗАТЬ_ИСТЦА]")
     context.setdefault("defendant", "[УКАЗАТЬ_ОТВЕТЧИКА]")
@@ -135,14 +142,39 @@ def build_docx_context(
     context.setdefault("state_duty", "[УКАЗАТЬ_ГОСПОШЛИНУ]")
     context.setdefault("pretrial_claim", "[УКАЗАТЬ_ДОСУДЕБНЫЙ_ПОРЯДОК]")
 
+    # Ходатайство
     context.setdefault("court_or_body", "[УКАЗАТЬ_СУД_ИЛИ_ОРГАН]")
     context.setdefault("case_number", "[УКАЗАТЬ_НОМЕР_ДЕЛА]")
     context.setdefault("applicant", "[УКАЗАТЬ_ЗАЯВИТЕЛЯ]")
     context.setdefault("request", "[УКАЗАТЬ_ПРОСЬБУ]")
     context.setdefault("grounds", "[УКАЗАТЬ_ОСНОВАНИЯ]")
+    context.setdefault("participants", "[УКАЗАТЬ_УЧАСТНИКОВ]")
+
+    # Жалоба
+    context.setdefault("addressee", "[УКАЗАТЬ_АДРЕСАТА]")
+    context.setdefault("authority", "[УКАЗАТЬ_ОРГАН_ИЛИ_ДОЛЖНОСТНОЕ_ЛИЦО]")
+    context.setdefault("challenged_action", "[УКАЗАТЬ_ЧТО_ОБЖАЛУЕТСЯ]")
+    context.setdefault("decision_date", "[УКАЗАТЬ_ДАТУ_РЕШЕНИЯ_ИЛИ_ДЕЙСТВИЯ]")
+
+    # Отзыв / возражения
+    context.setdefault("respondent", "[УКАЗАТЬ_ЛИЦО_ПОДАЮЩЕЕ_ОТЗЫВ]")
+    context.setdefault("opponent", "[УКАЗАТЬ_ОППОНЕНТА]")
+    context.setdefault("position", "[УКАЗАТЬ_ПОЗИЦИЮ_ПО_ТРЕБОВАНИЯМ]")
+    context.setdefault("arguments", "[УКАЗАТЬ_ВОЗРАЖЕНИЯ]")
+
+    # Апелляция
+    context.setdefault("appeal_court", "[УКАЗАТЬ_АПЕЛЛЯЦИОННЫЙ_СУД]")
+    context.setdefault("first_instance_court", "[УКАЗАТЬ_СУД_ПЕРВОЙ_ИНСТАНЦИИ]")
+    context.setdefault("decision", "[УКАЗАТЬ_ОБЖАЛУЕМЫЙ_СУДЕБНЫЙ_АКТ]")
+    context.setdefault("appeal_arguments", "[УКАЗАТЬ_ДОВОДЫ_АПЕЛЛЯЦИИ]")
+    context.setdefault("requested_result", "[УКАЗАТЬ_ПРОСИТЕЛЬНУЮ_ЧАСТЬ]")
+
+    # Кассация
+    context.setdefault("cassation_court", "[УКАЗАТЬ_КАССАЦИОННЫЙ_СУД]")
+    context.setdefault("challenged_acts", "[УКАЗАТЬ_ОБЖАЛУЕМЫЕ_СУДЕБНЫЕ_АКТЫ]")
+    context.setdefault("material_violations", "[УКАЗАТЬ_СУЩЕСТВЕННЫЕ_НАРУШЕНИЯ]")
 
     return context
-
 
 def _normalize_template_value(value) -> str:
     if value is None:
@@ -161,3 +193,25 @@ def _normalize_template_value(value) -> str:
         return "\n".join(f"{key}: {item}" for key, item in value.items())
 
     return str(value)
+
+def _list_to_text(items) -> str:
+    if not items:
+        return ""
+
+    result = []
+
+    for item in items:
+        if isinstance(item, dict):
+            label = item.get("label") or item.get("name") or ""
+            value = item.get("value") or item.get("text") or ""
+
+            if label and value:
+                result.append(f"{label}: {value}")
+            elif value:
+                result.append(str(value))
+            elif label:
+                result.append(str(label))
+        else:
+            result.append(str(item))
+
+    return "\n".join(result)

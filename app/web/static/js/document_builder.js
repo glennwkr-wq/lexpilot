@@ -1,5 +1,6 @@
 const documentRequestInput = document.getElementById("documentRequest");
-const additionalDocumentDataInput = document.getElementById("additionalDocumentData");
+const documentQuestionsPanel = document.getElementById("documentQuestionsPanel");
+const documentQuestionsBox = document.getElementById("documentQuestionsBox");
 const builderClientIdInput = document.getElementById("builderClientId");
 const builderCaseIdInput = document.getElementById("builderCaseId");
 const generateDocumentButton = document.getElementById("generateDocumentButton");
@@ -13,6 +14,7 @@ let currentDocumentTitle = "Юридический документ";
 let currentClientName = "";
 let currentDocumentFamily = "";
 let currentExtractedData = {};
+let currentMissingFieldAnswers = {};
 
 function setDocumentLoading(isLoading) {
   generateDocumentButton.disabled = isLoading;
@@ -101,9 +103,7 @@ function renderDocumentSources(sources) {
 generateDocumentButton.addEventListener("click", async () => {
   const requestText = documentRequestInput.value.trim();
 
-  const additionalText = additionalDocumentDataInput
-    ? additionalDocumentDataInput.value.trim()
-    : "";
+  const additionalText = buildStructuredAnswersText();
 
   if (!requestText) {
     documentDraftBox.textContent = "Введите исходные данные для документа.";
@@ -151,6 +151,7 @@ generateDocumentButton.addEventListener("click", async () => {
     currentClientName = data.client?.full_name || getSelectedClientName();
     currentDocumentFamily = data.detected_family || "";
     currentExtractedData = data.extracted_data || {};
+    renderDocumentQuestions(data.missing_required_fields || []);
 
     documentDraftBox.innerHTML = `
       ${renderDocumentMeta(data)}
@@ -312,4 +313,76 @@ function escapeHtml(value) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
+}
+
+function renderDocumentQuestions(missingFields) {
+  if (!documentQuestionsPanel || !documentQuestionsBox) {
+    return;
+  }
+
+  if (!missingFields || missingFields.length === 0) {
+    documentQuestionsPanel.classList.add("is-hidden");
+    documentQuestionsBox.innerHTML = "";
+    return;
+  }
+
+  documentQuestionsPanel.classList.remove("is-hidden");
+
+  documentQuestionsBox.innerHTML = missingFields
+    .map((field) => {
+      const key = field.key || "";
+      const label = field.label || key;
+      const savedValue = currentMissingFieldAnswers[key] || "";
+
+      return `
+        <label class="document-question-item">
+          <span>${escapeHtml(label)}</span>
+          <input
+            type="text"
+            data-missing-field-key="${escapeHtml(key)}"
+            value="${escapeHtml(savedValue)}"
+            placeholder="Введите значение, если известно"
+          />
+        </label>
+      `;
+    })
+    .join("");
+
+  documentQuestionsBox
+    .querySelectorAll("[data-missing-field-key]")
+    .forEach((input) => {
+      input.addEventListener("input", () => {
+        currentMissingFieldAnswers[input.dataset.missingFieldKey] = input.value.trim();
+      });
+    });
+}
+
+function buildStructuredAnswersText() {
+  if (!documentQuestionsBox) {
+    return "";
+  }
+
+  const inputs = documentQuestionsBox.querySelectorAll("[data-missing-field-key]");
+  const lines = [];
+
+  inputs.forEach((input) => {
+    const key = input.dataset.missingFieldKey || "";
+    const value = input.value.trim();
+
+    if (!value) {
+      return;
+    }
+
+    currentMissingFieldAnswers[key] = value;
+    lines.push(`${key}: ${value}`);
+  });
+
+  if (lines.length === 0) {
+    return "";
+  }
+
+  return `
+ОТВЕТЫ НА УТОЧНЯЮЩИЕ ВОПРОСЫ:
+${lines.join("\n")}
+`.trim();
 }
