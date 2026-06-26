@@ -312,6 +312,10 @@ def create_app() -> Flask:
             clients=clients,
         )
 
+    @app.get("/robots.txt")
+    def robots_txt():
+        return "User-agent: *\nDisallow: /\n", 200, {"Content-Type": "text/plain"}
+
     @app.get("/knowledge")
     def knowledge_page():
         stats = get_knowledge_stats()
@@ -529,20 +533,30 @@ def create_app() -> Flask:
             )
             mark_timing("core_law_search", step_started)
 
-            step_started = time.perf_counter()
-            core_law_reranked = rerank_core_law_sources(
-                user_question=question,
-                sources=core_law_candidates[:15],
-                limit=5,
-            )
-            mark_timing("core_law_rerank", step_started)
+            if not core_law_candidates:
+                core_law_reranked = []
+                core_gate = {
+                    "is_sufficient": False,
+                    "confidence": 1.0,
+                    "reason": "Статьи кодексов не найдены.",
+                    "federal_search_query": question,
+                }
+            else:
 
-            step_started = time.perf_counter()
-            core_gate = assess_core_law_sufficiency(
-                user_question=question,
-                core_sources=core_law_reranked[:5],
-            )
-            mark_timing("core_law_gate", step_started)
+                step_started = time.perf_counter()
+                core_law_reranked = rerank_core_law_sources(
+                    user_question=question,
+                    sources=core_law_candidates[:15],
+                    limit=5,
+                )
+                mark_timing("core_law_rerank", step_started)
+
+                step_started = time.perf_counter()
+                core_gate = assess_core_law_sufficiency(
+                    user_question=question,
+                    core_sources=core_law_reranked[:5],
+                )
+                mark_timing("core_law_gate", step_started)
 
             if is_core_law_sufficient(core_law_reranked) and core_gate.get("is_sufficient"):
                 core_law_results = core_law_reranked[:5]
