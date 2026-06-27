@@ -1,15 +1,25 @@
+const documentStartScreen = document.getElementById("documentStartScreen");
+const documentQuestionScreen = document.getElementById("documentQuestionScreen");
+const documentPreviewScreen = document.getElementById("documentPreviewScreen");
+
 const documentRequestInput = document.getElementById("documentRequest");
 const builderClientIdInput = document.getElementById("builderClientId");
 const builderCaseIdInput = document.getElementById("builderCaseId");
+
 const generateDocumentButton = document.getElementById("generateDocumentButton");
+const restartInterviewButton = document.getElementById("restartInterviewButton");
+const backToInterviewButton = document.getElementById("backToInterviewButton");
 const answerQuestionButton = document.getElementById("answerQuestionButton");
+
 const downloadDocumentButton = document.getElementById("downloadDocumentButton");
+const downloadPdfButton = document.getElementById("downloadPdfButton");
+
 const documentDraftBox = document.getElementById("documentDraftBox");
-const documentSourcesBox = document.getElementById("documentSourcesBox");
 const documentStatusBadge = document.getElementById("documentStatusBadge");
-const interviewProgressBox = document.getElementById("interviewProgressBox");
 const singleQuestionBox = document.getElementById("singleQuestionBox");
-const templateChoiceBox = document.getElementById("templateChoiceBox");
+
+const signatureCanvas = document.getElementById("signatureCanvas");
+const clearSignatureButton = document.getElementById("clearSignatureButton");
 
 let currentDocumentDraft = "";
 let currentDocumentTitle = "Юридический документ";
@@ -18,25 +28,40 @@ let currentExtractedData = {};
 let currentQuestion = null;
 let selectedTemplateId = "";
 let interviewStarted = false;
+let signaturePadReady = false;
+let isDrawingSignature = false;
 
 generateDocumentButton.addEventListener("click", async () => {
   selectedTemplateId = "";
   currentExtractedData = {};
+  currentDocumentDraft = "";
+  currentQuestion = null;
+  interviewStarted = false;
+
   await runInterview({});
+});
+
+restartInterviewButton.addEventListener("click", () => {
+  selectedTemplateId = "";
+  currentExtractedData = {};
+  currentDocumentDraft = "";
+  currentQuestion = null;
+  interviewStarted = false;
+
+  showStartScreen();
+});
+
+backToInterviewButton.addEventListener("click", () => {
+  showQuestionScreen();
 });
 
 answerQuestionButton.addEventListener("click", async () => {
   if (!currentQuestion) {
+    showPreviewScreen();
     return;
   }
 
-  const input = document.getElementById("singleQuestionInput");
-
-  if (!input) {
-    return;
-  }
-
-  const value = input.value.trim();
+  const value = readCurrentQuestionValue();
 
   if (!value) {
     documentStatusBadge.textContent = "Введите ответ";
@@ -70,6 +95,7 @@ downloadDocumentButton.addEventListener("click", async () => {
         client_name: currentClientName,
         template_id: selectedTemplateId,
         extracted_data: currentExtractedData,
+        signature_data_url: getSignatureDataUrl(),
       }),
     });
 
@@ -102,12 +128,13 @@ async function runInterview(answers) {
   const requestText = documentRequestInput.value.trim();
 
   if (!requestText) {
-    documentDraftBox.textContent = "Введите, какой документ нужно подготовить.";
-    documentStatusBadge.textContent = "Нет данных";
+    documentRequestInput.focus();
     return;
   }
 
   setLoading(true);
+  showQuestionScreen();
+  renderQuestionLoading();
 
   try {
     const response = await fetch("/api/document-builder", {
@@ -128,7 +155,12 @@ async function runInterview(answers) {
     const data = await response.json();
 
     if (!response.ok || data.status !== "ok") {
-      documentDraftBox.textContent = data.message || "Ошибка генерации.";
+      singleQuestionBox.innerHTML = `
+        <div class="single-question-card">
+          <span>Ошибка</span>
+          <strong>${escapeHtml(data.message || "Ошибка генерации.")}</strong>
+        </div>
+      `;
       documentStatusBadge.textContent = "Ошибка";
       return;
     }
@@ -142,116 +174,62 @@ async function runInterview(answers) {
     currentExtractedData = data.extracted_data || {};
     currentQuestion = data.current_question || null;
 
-    renderTemplateChoices(data.candidate_templates || []);
-    renderProgress(data);
-    renderQuestion(currentQuestion);
-    renderSources(data.sources || []);
-
-    documentDraftBox.innerHTML = `<pre class="document-draft-text">${escapeHtml(currentDocumentDraft)}</pre>`;
-
     if (currentQuestion) {
-      documentStatusBadge.textContent = "Нужен ответ";
+      documentStatusBadge.textContent = "Вопрос";
+      renderQuestion(currentQuestion);
       answerQuestionButton.disabled = false;
     } else {
-      documentStatusBadge.textContent = "Готов к Word";
-      answerQuestionButton.disabled = true;
+      documentStatusBadge.textContent = "Документ готов";
+      renderPreview();
+      showPreviewScreen();
     }
 
     downloadDocumentButton.disabled = !selectedTemplateId;
   } catch (error) {
-    documentDraftBox.textContent = "Ошибка соединения с сервером.";
+    singleQuestionBox.innerHTML = `
+      <div class="single-question-card">
+        <span>Ошибка</span>
+        <strong>Ошибка соединения с сервером.</strong>
+      </div>
+    `;
     documentStatusBadge.textContent = "Ошибка";
   } finally {
     setLoading(false);
   }
 }
 
-function renderTemplateChoices(templates) {
-  if (!templateChoiceBox) {
-    return;
-  }
-
-  if (!templates || templates.length <= 1) {
-    templateChoiceBox.classList.add("is-hidden");
-    templateChoiceBox.innerHTML = "";
-    return;
-  }
-
-  templateChoiceBox.classList.remove("is-hidden");
-
-  templateChoiceBox.innerHTML = `
-    <strong>Похожие шаблоны</strong>
-    <div class="template-choice-list">
-      ${templates.map((template) => {
-        const active = template.id === selectedTemplateId ? "is-active" : "";
-
-        return `
-          <button type="button" class="template-choice-item ${active}" data-template-id="${escapeHtml(template.id)}">
-            <span>${escapeHtml(template.title)}</span>
-            <small>${escapeHtml(template.category || "")}${template.subcategory ? " · " + escapeHtml(template.subcategory) : ""}</small>
-          </button>
-        `;
-      }).join("")}
-    </div>
-  `;
-
-  templateChoiceBox.querySelectorAll("[data-template-id]").forEach((button) => {
-    button.addEventListener("click", async () => {
-      selectedTemplateId = button.dataset.templateId || "";
-      currentExtractedData = {};
-      await runInterview({});
-    });
-  });
-}
-
-function renderProgress(data) {
-  const completeness = data.completeness || {};
-  const template = data.selected_template || {};
-  const fields = data.extracted_data?.fields || {};
-  const filledCount = Object.values(fields).filter((value) => value && value !== "не указано").length;
-
-  interviewProgressBox.innerHTML = `
-    <div class="interview-progress-grid">
-      <div>
-        <span>Шаблон</span>
-        <strong>${escapeHtml(template.title || "Не выбран")}</strong>
-      </div>
-      <div>
-        <span>Заполненность</span>
-        <strong>${Number(completeness.percent || 0)}%</strong>
-      </div>
-      <div>
-        <span>Заполнено полей</span>
-        <strong>${filledCount}</strong>
-      </div>
+function renderQuestionLoading() {
+  singleQuestionBox.innerHTML = `
+    <div class="single-question-card">
+      <span>LexPilot</span>
+      <strong>Подбираю следующий вопрос...</strong>
+      <p>Система проверяет уже заполненные данные и российский Word-шаблон.</p>
     </div>
   `;
 }
 
 function renderQuestion(question) {
-  if (!singleQuestionBox) {
-    return;
-  }
-
-  if (!question) {
-    singleQuestionBox.classList.remove("is-hidden");
-    singleQuestionBox.innerHTML = `
-      <div class="single-question-card">
-        <span>Интервью завершено</span>
-        <strong>Все обязательные данные заполнены или отмечены плейсхолдерами.</strong>
-        <p>Можно скачать Word и проверить документ.</p>
-      </div>
-    `;
-    return;
-  }
-
-  singleQuestionBox.classList.remove("is-hidden");
-
   const type = question.type || "text";
+  const options = Array.isArray(question.options) ? question.options : [];
 
-  const control = type === "textarea"
-    ? `<textarea id="singleQuestionInput" placeholder="${escapeHtml(question.placeholder || "")}"></textarea>`
-    : `<input id="singleQuestionInput" type="text" placeholder="${escapeHtml(question.placeholder || "")}" />`;
+  let control = "";
+
+  if (type === "textarea") {
+    control = `<textarea id="singleQuestionInput" placeholder="${escapeHtml(question.placeholder || "")}"></textarea>`;
+  } else if (type === "choice" && options.length > 0) {
+    control = `
+      <div class="interview-choice-list">
+        ${options.map((option) => `
+          <button type="button" class="interview-choice-button" data-choice-value="${escapeHtml(option.value || option)}">
+            ${escapeHtml(option.label || option.value || option)}
+          </button>
+        `).join("")}
+      </div>
+      <input id="singleQuestionInput" type="hidden" />
+    `;
+  } else {
+    control = `<input id="singleQuestionInput" type="text" placeholder="${escapeHtml(question.placeholder || "")}" />`;
+  }
 
   singleQuestionBox.innerHTML = `
     <div class="single-question-card">
@@ -264,7 +242,21 @@ function renderQuestion(question) {
 
   const input = document.getElementById("singleQuestionInput");
 
-  if (input) {
+  document.querySelectorAll(".interview-choice-button").forEach((button) => {
+    button.addEventListener("click", () => {
+      document.querySelectorAll(".interview-choice-button").forEach((item) => {
+        item.classList.remove("is-selected");
+      });
+
+      button.classList.add("is-selected");
+
+      if (input) {
+        input.value = button.dataset.choiceValue || "";
+      }
+    });
+  });
+
+  if (input && type !== "choice") {
     input.focus();
     input.addEventListener("keydown", async (event) => {
       if (event.key === "Enter" && type !== "textarea") {
@@ -275,21 +267,44 @@ function renderQuestion(question) {
   }
 }
 
-function renderSources(sources) {
-  if (!sources || sources.length === 0) {
-    documentSourcesBox.innerHTML = "Шаблон не найден.";
-    return;
+function readCurrentQuestionValue() {
+  const input = document.getElementById("singleQuestionInput");
+
+  if (!input) {
+    return "";
   }
 
-  documentSourcesBox.innerHTML = sources.map((source, index) => {
-    return `
-      <div class="source-item">
-        <strong>${index + 1}. ${escapeHtml(source.title || "Шаблон")}</strong>
-        <span>${escapeHtml(source.document_type || "")}</span>
-        ${source.source_url ? `<small>${escapeHtml(source.source_url)}</small>` : ""}
-      </div>
-    `;
-  }).join("");
+  return input.value.trim();
+}
+
+function renderPreview() {
+  documentDraftBox.innerHTML = `<pre class="document-draft-text">${escapeHtml(currentDocumentDraft || "Документ готов к скачиванию в Word.")}</pre>`;
+  downloadDocumentButton.disabled = !selectedTemplateId;
+  downloadPdfButton.disabled = true;
+  initSignaturePad();
+}
+
+function showStartScreen() {
+  documentStartScreen.classList.remove("is-hidden");
+  documentQuestionScreen.classList.add("is-hidden");
+  documentPreviewScreen.classList.add("is-hidden");
+
+  documentStatusBadge.textContent = "Ожидает данные";
+  generateDocumentButton.disabled = false;
+  generateDocumentButton.textContent = "Начать интервью";
+}
+
+function showQuestionScreen() {
+  documentStartScreen.classList.add("is-hidden");
+  documentQuestionScreen.classList.remove("is-hidden");
+  documentPreviewScreen.classList.add("is-hidden");
+}
+
+function showPreviewScreen() {
+  documentStartScreen.classList.add("is-hidden");
+  documentQuestionScreen.classList.add("is-hidden");
+  documentPreviewScreen.classList.remove("is-hidden");
+  initSignaturePad();
 }
 
 function setLoading(isLoading) {
@@ -298,9 +313,91 @@ function setLoading(isLoading) {
 
   generateDocumentButton.textContent = isLoading
     ? "Обработка..."
-    : interviewStarted
-      ? "Перезапустить"
-      : "Начать";
+    : "Начать интервью";
+
+  answerQuestionButton.textContent = isLoading
+    ? "Обработка..."
+    : "Продолжить";
+}
+
+function initSignaturePad() {
+  if (!signatureCanvas || signaturePadReady) {
+    return;
+  }
+
+  signaturePadReady = true;
+
+  const context = signatureCanvas.getContext("2d");
+  context.lineWidth = 2;
+  context.lineCap = "round";
+  context.strokeStyle = "#111827";
+
+  const getPoint = (event) => {
+    const rect = signatureCanvas.getBoundingClientRect();
+    const source = event.touches ? event.touches[0] : event;
+
+    return {
+      x: source.clientX - rect.left,
+      y: source.clientY - rect.top,
+    };
+  };
+
+  const startDrawing = (event) => {
+    event.preventDefault();
+    isDrawingSignature = true;
+
+    const point = getPoint(event);
+    context.beginPath();
+    context.moveTo(point.x, point.y);
+  };
+
+  const draw = (event) => {
+    if (!isDrawingSignature) {
+      return;
+    }
+
+    event.preventDefault();
+
+    const point = getPoint(event);
+    context.lineTo(point.x, point.y);
+    context.stroke();
+  };
+
+  const stopDrawing = () => {
+    isDrawingSignature = false;
+  };
+
+  signatureCanvas.addEventListener("mousedown", startDrawing);
+  signatureCanvas.addEventListener("mousemove", draw);
+  signatureCanvas.addEventListener("mouseup", stopDrawing);
+  signatureCanvas.addEventListener("mouseleave", stopDrawing);
+
+  signatureCanvas.addEventListener("touchstart", startDrawing);
+  signatureCanvas.addEventListener("touchmove", draw);
+  signatureCanvas.addEventListener("touchend", stopDrawing);
+
+  if (clearSignatureButton) {
+    clearSignatureButton.addEventListener("click", () => {
+      context.clearRect(0, 0, signatureCanvas.width, signatureCanvas.height);
+    });
+  }
+}
+
+function getSignatureDataUrl() {
+  if (!signatureCanvas) {
+    return "";
+  }
+
+  const context = signatureCanvas.getContext("2d");
+  const pixels = context.getImageData(0, 0, signatureCanvas.width, signatureCanvas.height).data;
+
+  for (let index = 3; index < pixels.length; index += 4) {
+    if (pixels[index] !== 0) {
+      return signatureCanvas.toDataURL("image/png");
+    }
+  }
+
+  return "";
 }
 
 function getSelectedClientName() {

@@ -1,74 +1,89 @@
 {% extends "base.html" %}
 
 {% block content %}
-<section class="page-header">
-  <p class="eyebrow">LexPilot Document Interview</p>
-  <h1>Генератор документов</h1>
-  <p>
-    LexPilot выбирает российский Word-шаблон, задаёт вопросы по одному и формирует готовый документ.
-  </p>
-</section>
-
-<section class="interview-layout">
-  <div class="interview-panel">
-    <label for="builderClientId">Клиент</label>
-    <select id="builderClientId" class="builder-client-select">
-      <option value="">Без выбранного клиента</option>
-      {% for client in clients %}
-        <option value="{{ client.id }}">{{ client.full_name }}</option>
-      {% endfor %}
-    </select>
-
-    <label for="builderCaseId">Дело</label>
-    <select id="builderCaseId" class="builder-client-select">
-      <option value="">Без привязки к делу</option>
-      {% for case in cases %}
-        <option value="{{ case.id }}" {% if selected_case_id|string == case.id|string %}selected{% endif %}>
-          {{ case.title }}
-        </option>
-      {% endfor %}
-    </select>
-
-    <label for="documentRequest">Что нужно подготовить?</label>
-    <textarea
-      id="documentRequest"
-      placeholder="Например: иск о взыскании задолженности по договору займа на 450 000 руб. или претензия по договору поставки..."
-    ></textarea>
-
-    <div id="templateChoiceBox" class="template-choice-box is-hidden"></div>
-
-    <div id="singleQuestionBox" class="single-question-box is-hidden"></div>
-
-    <div class="document-builder-actions">
-      <button id="generateDocumentButton" type="button">Начать</button>
-      <button id="answerQuestionButton" class="secondary" type="button" disabled>Ответить</button>
-      <button id="downloadDocumentButton" class="secondary" type="button" disabled>Скачать Word</button>
-    </div>
-
-    <p class="hint">
-      Вопросы появляются по одному. После ответа LexPilot показывает следующий вопрос.
+<section class="document-interview-shell">
+  <div class="document-interview-start" id="documentStartScreen">
+    <p class="eyebrow">LexPilot Document Interview</p>
+    <h1>Генератор документов</h1>
+    <p>
+      Опишите задачу, затем LexPilot задаст вопросы по одному и подготовит документ
+      по российскому Word-шаблону.
     </p>
+
+    <div class="document-start-card">
+      <label for="builderClientId">Клиент</label>
+      <select id="builderClientId" class="builder-client-select">
+        <option value="">Без выбранного клиента</option>
+        {% for client in clients %}
+          <option value="{{ client.id }}">{{ client.full_name }}</option>
+        {% endfor %}
+      </select>
+
+      <label for="builderCaseId">Дело</label>
+      <select id="builderCaseId" class="builder-client-select">
+        <option value="">Без привязки к делу</option>
+        {% for case in cases %}
+          <option value="{{ case.id }}" {% if selected_case_id|string == case.id|string %}selected{% endif %}>
+            {{ case.title }}
+          </option>
+        {% endfor %}
+      </select>
+
+      <label for="documentRequest">Что нужно подготовить?</label>
+      <textarea
+        id="documentRequest"
+        placeholder="Например: подготовить ходатайство об отложении судебного заседания или иск о взыскании задолженности..."
+      ></textarea>
+
+      <button id="generateDocumentButton" type="button">Начать интервью</button>
+      <p class="hint">
+        Пользователь не видит технический список шаблонов и недостающих полей — только следующий вопрос.
+      </p>
+    </div>
   </div>
 
-  <div class="interview-result-panel">
-    <div class="answer-header">
-      <h2>Документ</h2>
+  <div class="document-interview-question is-hidden" id="documentQuestionScreen">
+    <div class="document-question-topbar">
+      <button id="restartInterviewButton" type="button" class="secondary">Начать заново</button>
       <span id="documentStatusBadge">Ожидает данные</span>
     </div>
 
-    <div id="interviewProgressBox" class="interview-progress-box">
-      Здесь появится выбранный шаблон и прогресс заполнения.
+    <div id="singleQuestionBox" class="document-question-main"></div>
+
+    <div class="document-question-actions">
+      <button id="answerQuestionButton" type="button">Продолжить</button>
+    </div>
+  </div>
+
+  <div class="document-preview-screen is-hidden" id="documentPreviewScreen">
+    <div class="document-question-topbar">
+      <button id="backToInterviewButton" type="button" class="secondary">Вернуться к вопросам</button>
+      <span>Документ готов</span>
     </div>
 
-    <div id="documentDraftBox" class="answer-box">
-      Здесь появится состояние документа.
-    </div>
-
-    <div class="sources-block">
-      <h3>Шаблон</h3>
-      <div id="documentSourcesBox" class="sources-box">
-        Шаблон появится после запуска.
+    <div class="document-preview-card">
+      <h2>Предпросмотр</h2>
+      <div id="documentDraftBox" class="document-preview-box">
+        Документ появится после завершения интервью.
       </div>
+
+      <div class="signature-panel">
+        <h3>Подпись</h3>
+        <p>Можно нарисовать подпись мышью или пальцем. Если подпись не нужна, оставьте поле пустым.</p>
+        <canvas id="signatureCanvas" width="720" height="220"></canvas>
+        <div class="signature-actions">
+          <button id="clearSignatureButton" type="button" class="secondary">Очистить подпись</button>
+        </div>
+      </div>
+
+      <div class="document-download-actions">
+        <button id="downloadDocumentButton" type="button" disabled>Скачать Word</button>
+        <button id="downloadPdfButton" type="button" class="secondary" disabled>Скачать PDF</button>
+      </div>
+
+      <p class="hint">
+        PDF подключим следующим шагом. Сейчас основной рабочий результат — Word-документ.
+      </p>
     </div>
   </div>
 </section>

@@ -42,10 +42,15 @@ def search_templates(
     scored = []
 
     for item in manifest:
-        if family and family != "unknown" and item.get("family") != family:
-            continue
+        item_family = item.get("family") or ""
 
-        score = score_template(item, query_words)
+        if family and family not in ["unknown", "document"]:
+            if family == "motion":
+                pass
+            elif item_family != family:
+                continue
+
+        score = score_template(item, query_words, family)
 
         if score <= 0:
             continue
@@ -66,34 +71,71 @@ def choose_best_template(
     return results[0] if results else None
 
 
-def score_template(item: dict, query_words: list[str]) -> int:
-    text = " ".join([
-        item.get("title") or "",
-        item.get("category") or "",
-        item.get("subcategory") or "",
-        item.get("source_path") or "",
-        item.get("family") or "",
-    ]).lower()
+def score_template(item: dict, query_words: list[str], family: str | None = None) -> int:
+    title = (item.get("title") or "").lower()
+    category = (item.get("category") or "").lower()
+    subcategory = (item.get("subcategory") or "").lower()
+    source_path = (item.get("source_path") or "").lower()
+    item_family = (item.get("family") or "").lower()
+
+    text = " ".join([title, category, subcategory, source_path, item_family])
 
     score = 0
 
     for word in query_words:
-        if word in text:
+        if word in title:
+            score += 6
+        elif word in subcategory:
+            score += 4
+        elif word in category:
             score += 3
+        elif word in source_path:
+            score += 2
+        elif word in text:
+            score += 1
 
-    title = (item.get("title") or "").lower()
+    query_text = " ".join(query_words)
 
-    if "взыск" in title:
-        score += 2
+    if family == "motion":
+        if "ходатай" in title or "ходатай" in source_path:
+            score += 40
+        if "иск" in title and "ходатай" not in title:
+            score -= 20
 
-    if "задолж" in title or "долг" in title:
-        score += 2
+    if family == "claim":
+        if "претенз" in title or "претенз" in source_path:
+            score += 30
+        if "иск" in title:
+            score -= 10
 
-    if "договор" in title:
-        score += 1
+    if family == "complaint":
+        if "жалоб" in title or "жалоб" in source_path:
+            score += 30
+
+    if family == "lawsuit":
+        if "иск" in title or "исков" in title:
+            score += 25
+        if "претенз" in title:
+            score -= 10
+
+    if family == "contract":
+        if "договор" in title or "договор" in source_path:
+            score += 25
+
+    if "взыск" in query_text and "взыск" in title:
+        score += 8
+
+    if ("задолж" in query_text or "долг" in query_text) and ("задолж" in title or "долг" in title):
+        score += 8
+
+    if "постав" in query_text and "постав" in title:
+        score += 8
+
+    if "займ" in query_text and "займ" in title:
+        score += 8
 
     if "с представителем" in title:
-        score -= 1
+        score -= 2
 
     return score
 

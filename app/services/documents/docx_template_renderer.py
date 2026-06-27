@@ -1,7 +1,9 @@
+import base64
 from io import BytesIO
 from pathlib import Path
 
-from docxtpl import DocxTemplate
+from docxtpl import DocxTemplate, InlineImage
+from docx.shared import Mm
 
 from app.services.documents.template_catalog import find_template_by_id
 
@@ -16,6 +18,7 @@ def render_docx_template(
     extracted_data: dict,
     title: str = "Юридический документ",
     client_name: str = "",
+    signature_data_url: str = "",
 ) -> BytesIO:
     template = find_template_by_id(template_id)
 
@@ -29,10 +32,12 @@ def render_docx_template(
 
     document = DocxTemplate(str(template_path))
     context = build_docx_context(
+        document=document,
         template=template,
         extracted_data=extracted_data,
         title=title,
         client_name=client_name,
+        signature_data_url=signature_data_url,
     )
 
     document.render(context)
@@ -66,10 +71,12 @@ def get_docx_template_info(template_id: str | None) -> dict:
 
 
 def build_docx_context(
+    document: DocxTemplate,
     template: dict,
     extracted_data: dict,
     title: str = "Юридический документ",
     client_name: str = "",
+    signature_data_url: str = "",
 ) -> dict:
     extracted_data = extracted_data if isinstance(extracted_data, dict) else {}
 
@@ -118,10 +125,37 @@ def build_docx_context(
     for key, value in parties.items():
         context[f"party_{key}"] = _normalize_template_value(value)
 
+    signature_image = _build_signature_image(document, signature_data_url)
+
     for variable in template.get("variables") or []:
-        context.setdefault(variable, f"[УКАЗАТЬ_{variable.upper()}]")
+        if variable.lower() in ["signature", "signature_image", "sign", "подпись"]:
+            context[variable] = signature_image or "[ПОДПИСЬ]"
+        else:
+            context.setdefault(variable, f"[УКАЗАТЬ_{variable.upper()}]")
+
+    context["signature"] = signature_image or context.get("signature") or "[ПОДПИСЬ]"
+    context["signature_image"] = signature_image or ""
 
     return context
+
+
+def _build_signature_image(document: DocxTemplate, signature_data_url: str):
+    signature_data_url = (signature_data_url or "").strip()
+
+    if not signature_data_url.startswith("data:image/png;base64,"):
+        return None
+
+    try:
+        raw_base64 = signature_data_url.split(",", 1)[1]
+        image_bytes = base64.b64decode(raw_base64)
+    except Exception:
+        return None
+
+    return InlineImage(
+        document,
+        BytesIO(image_bytes),
+        width=Mm(55),
+    )
 
 
 def _normalize_template_value(value) -> str:

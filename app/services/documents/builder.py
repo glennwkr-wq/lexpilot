@@ -1,5 +1,11 @@
+import re
+
 from app.providers.llm.openai import generate_document_intake_json
-from app.services.documents.template_catalog import choose_best_template, search_templates
+from app.services.documents.template_catalog import (
+    choose_best_template,
+    find_template_by_id,
+    search_templates,
+)
 from app.services.documents.docx_template_renderer import get_docx_template_info
 
 
@@ -26,13 +32,18 @@ def build_document_from_request(
     template = None
 
     if selected_template_id:
-        from app.services.documents.template_catalog import find_template_by_id
         template = find_template_by_id(selected_template_id)
 
     if not template:
         template = choose_best_template(
             query=user_request,
             family=family,
+        )
+
+    if not template:
+        template = choose_best_template(
+            query=user_request,
+            family=None,
         )
 
     if not template:
@@ -67,7 +78,7 @@ def build_document_from_request(
     current_question = find_next_question(fields, data)
 
     completeness = calculate_completeness(fields, missing_fields)
-    draft = build_preview(template, fields, data, missing_fields)
+    draft = build_user_preview(template, fields, data)
 
     template_id = template.get("id") or ""
 
@@ -84,7 +95,7 @@ def build_document_from_request(
             "subcategory": template.get("subcategory") or "",
             "template_path": template.get("template_path") or "",
         },
-        "candidate_templates": search_templates(user_request, family=template.get("family"), limit=8),
+        "candidate_templates": [],
         "extracted_data": data,
         "fields": fields,
         "missing_required_fields": missing_fields,
@@ -97,22 +108,22 @@ def build_document_from_request(
 
 
 def detect_family(user_request: str) -> str:
-    text = user_request.lower()
+    text = (user_request or "").lower()
+
+    if "ходатай" in text:
+        return "motion"
 
     if "претенз" in text or "досудеб" in text:
         return "claim"
+
+    if "жалоб" in text or "обжал" in text:
+        return "complaint"
 
     if "иск" in text or "исков" in text or "в суд" in text:
         return "lawsuit"
 
     if "договор" in text or "соглашение" in text:
         return "contract"
-
-    if "жалоб" in text or "обжал" in text:
-        return "complaint"
-
-    if "ходатай" in text:
-        return "motion"
 
     return "document"
 
@@ -159,13 +170,19 @@ def build_fields_from_template(template: dict) -> list[dict]:
     fields = []
 
     for variable in variables:
+        label = label_from_variable(variable, template)
+
+        if not label or label.startswith("<") or "w:t" in label:
+            label = cleanup_label(variable)
+
         fields.append({
             "key": variable,
-            "label": label_from_variable(variable, template),
+            "label": label,
             "type": guess_field_type(variable),
             "required": is_required_variable(variable),
-            "placeholder": "",
-            "help": "",
+            "placeholder": placeholder_for_variable(variable),
+            "help": help_for_variable(variable),
+            "options": options_for_variable(variable),
         })
 
     return fields
@@ -182,37 +199,125 @@ def label_from_variable(variable: str, template: dict) -> str:
 
 
 def cleanup_label(value: str) -> str:
+    value = str(value or "")
+    value = re.sub(r"<[^>]+>", " ", value)
+    value = re.sub(r"&[a-zA-Z]+;", " ", value)
+    value = re.sub(r"\{[{%].*?[%}]\}", " ", value)
     value = value.replace("_", " ")
-    value = value.strip()
+    value = value.replace("-", " ")
+    value = re.sub(r"\s+", " ", value).strip()
+
+    lower_value = value.lower()
 
     replacements = {
         "court name": "Наименование суда",
+        "court": "Суд",
         "court address": "Адрес суда",
         "plaintiff": "Истец",
+        "plaintiff address": "Адрес истца",
         "defendant": "Ответчик",
+        "defendant address": "Адрес ответчика",
+        "applicant": "Заявитель",
+        "applicant address": "Адрес заявителя",
+        "representative": "Представитель",
+        "representative address": "Адрес представителя",
         "signature": "Подпись",
+        "signature image": "Подпись",
         "claim price": "Цена иска",
+        "debt amount": "Сумма задолженности",
+        "interest amount": "Сумма процентов",
+        "penalty amount": "Сумма неустойки",
         "state duty": "Госпошлина",
+        "state duty amount": "Размер госпошлины",
+        "contract date": "Дата договора",
+        "contract number": "Номер договора",
+        "repayment deadline": "Срок возврата / оплаты",
         "date": "Дата",
         "city": "Город",
+        "claims": "Требования",
+        "claim list": "Список требований",
+        "facts": "Фактические обстоятельства",
+        "grounds": "Основания",
+        "basis": "Основание",
+        "request": "Просьба к суду / органу",
+        "attachments": "Приложения",
+        "evidence": "Доказательства",
     }
 
-    return replacements.get(value.lower(), value[:1].upper() + value[1:])
+    if lower_value in replacements:
+        return replacements[lower_value]
+
+    if not value:
+        return "Поле документа"
+
+    return value[:1].upper() + value[1:]
 
 
 def guess_field_type(variable: str) -> str:
     text = variable.lower()
 
-    if any(word in text for word in ["description", "claim_list", "claims", "circumstances", "grounds", "basis"]):
+    if any(word in text for word in [
+        "description",
+        "claim_list",
+        "claims",
+        "circumstances",
+        "grounds",
+        "basis",
+        "facts",
+        "attachments",
+        "evidence",
+    ]):
         return "textarea"
 
-    if "date" in text:
-        return "text"
-
-    if "amount" in text or "price" in text or "duty" in text:
-        return "text"
+    if any(word in text for word in ["has_", "is_", "need_", "with_"]):
+        return "choice"
 
     return "text"
+
+
+def placeholder_for_variable(variable: str) -> str:
+    text = variable.lower()
+
+    if "amount" in text or "price" in text or "duty" in text:
+        return "Например: 450 000 руб."
+
+    if "date" in text or "deadline" in text:
+        return "Например: 15.07.2026"
+
+    if "address" in text:
+        return "Введите адрес"
+
+    if "court" in text:
+        return "Введите наименование суда"
+
+    return "Введите ответ"
+
+
+def help_for_variable(variable: str) -> str:
+    text = variable.lower()
+
+    if "state_duty" in text or "duty" in text:
+        return "Если госпошлина пока не рассчитана, можно указать: рассчитать позже."
+
+    if "signature" in text:
+        return "Подпись можно будет нарисовать на финальном экране."
+
+    if "court" in text:
+        return "Если суд пока не определён, можно написать: определить позже."
+
+    return ""
+
+
+def options_for_variable(variable: str) -> list[dict]:
+    text = variable.lower()
+
+    if any(word in text for word in ["has_", "is_", "need_", "with_"]):
+        return [
+            {"label": "Да", "value": "Да"},
+            {"label": "Нет", "value": "Нет"},
+        ]
+
+    return []
 
 
 def is_required_variable(variable: str) -> bool:
@@ -225,6 +330,8 @@ def is_required_variable(variable: str) -> bool:
         "penalty",
         "moral",
         "additional",
+        "signature",
+        "image",
     ]
 
     if any(word in text for word in optional_words):
@@ -292,7 +399,9 @@ def find_next_question(fields: list[dict], data: dict) -> dict | None:
     values = data.get("fields") or {}
 
     for field in fields:
-        if not is_empty(values.get(field.get("key"))):
+        key = field.get("key")
+
+        if not is_empty(values.get(key)):
             continue
 
         return field
@@ -343,19 +452,14 @@ def calculate_completeness(fields: list[dict], missing: list[dict]) -> dict:
     }
 
 
-def build_preview(template: dict, fields: list[dict], data: dict, missing: list[dict]) -> str:
+def build_user_preview(template: dict, fields: list[dict], data: dict) -> str:
     values = data.get("fields") or {}
 
     lines = [
-        f"Выбранный шаблон: {template.get('title')}",
-        f"Категория: {template.get('category')}",
+        f"Документ: {template.get('title') or 'Юридический документ'}",
+        "",
+        "Заполненные данные:",
     ]
-
-    if template.get("subcategory"):
-        lines.append(f"Подкатегория: {template.get('subcategory')}")
-
-    lines.append("")
-    lines.append("Заполненные данные:")
 
     filled = [
         field
@@ -364,22 +468,15 @@ def build_preview(template: dict, fields: list[dict], data: dict, missing: list[
     ]
 
     if filled:
-        for field in filled[:20]:
+        for field in filled:
             lines.append(f"- {field.get('label')}: {values.get(field.get('key'))}")
     else:
         lines.append("- Пока нет заполненных данных.")
 
-    lines.append("")
-    lines.append("Чего не хватает:")
-
-    if missing:
-        for field in missing[:20]:
-            lines.append(f"- {field.get('label')}")
-    else:
-        lines.append("- Критичных пропусков нет.")
-
-    lines.append("")
-    lines.append("Итоговый документ будет сформирован по российскому Word-шаблону.")
+    lines.extend([
+        "",
+        "После скачивания Word проверьте реквизиты, правовое основание, приложения и подпись.",
+    ])
 
     return "\n".join(lines)
 

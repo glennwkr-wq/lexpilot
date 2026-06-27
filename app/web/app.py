@@ -742,6 +742,7 @@ def create_app() -> Flask:
         client_name = (data.get("client_name") or "").strip()
         template_id = (data.get("template_id") or "").strip()
         extracted_data = data.get("extracted_data") or {}
+        signature_data_url = (data.get("signature_data_url") or "").strip()
 
         if template_id and extracted_data:
             try:
@@ -750,6 +751,7 @@ def create_app() -> Flask:
                     extracted_data=extracted_data,
                     title=title,
                     client_name=client_name,
+                    signature_data_url=signature_data_url,
                 )
 
                 return send_file(
