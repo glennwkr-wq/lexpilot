@@ -242,6 +242,25 @@ def cleanup_label(value: str) -> str:
         "request": "Просьба к суду / органу",
         "attachments": "Приложения",
         "evidence": "Доказательства",
+        "court name text": "Наименование суда",
+        "preserve address": "Адрес суда",
+        "plaintiff name": "ФИО / наименование истца",
+        "plaintiff details": "Данные истца",
+        "plaintiff role": "Роль истца по договору",
+        "plaintiff obligation": "Обязанность истца по договору",
+        "plaintiff representative": "Представитель истца",
+        "plaintiff id": "Идентификатор / реквизиты истца",
+        "defendant name": "ФИО / наименование ответчика",
+        "defendant details": "Данные ответчика",
+        "defendant role": "Роль ответчика по договору",
+        "defendant belief": "Позиция ответчика",
+        "defendant registration address": "Адрес регистрации ответчика",
+        "contract type": "Вид договора",
+        "contract price": "Цена договора",
+        "claim subject": "Предмет требований",
+        "first argument explanation": "Первое обоснование требований",
+        "second argument explanation": "Второе обоснование требований",
+        "additional request": "Дополнительное требование",
     }
 
     if lower_value in replacements:
@@ -399,6 +418,9 @@ def find_next_question(fields: list[dict], data: dict) -> dict | None:
     values = data.get("fields") or {}
 
     for field in fields:
+        if not field.get("required"):
+            continue
+
         key = field.get("key")
 
         if not is_empty(values.get(key)):
