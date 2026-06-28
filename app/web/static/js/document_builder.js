@@ -15,7 +15,9 @@ const downloadDocumentButton = document.getElementById("downloadDocumentButton")
 const downloadPdfButton = document.getElementById("downloadPdfButton");
 
 const documentDraftBox = document.getElementById("documentDraftBox");
-const documentFieldsEditor = document.getElementById("documentFieldsEditor");
+const editPreviewButton = document.getElementById("editPreviewButton");
+const savePreviewButton = document.getElementById("savePreviewButton");
+const cancelPreviewButton = document.getElementById("cancelPreviewButton");
 const documentStatusBadge = document.getElementById("documentStatusBadge");
 const singleQuestionBox = document.getElementById("singleQuestionBox");
 
@@ -31,6 +33,8 @@ let selectedTemplateId = "";
 let interviewStarted = false;
 let signaturePadReady = false;
 let isDrawingSignature = false;
+let previewBeforeEdit = "";
+let previewWasEdited = false;
 
 generateDocumentButton.addEventListener("click", async () => {
   selectedTemplateId = "";
@@ -108,6 +112,8 @@ downloadDocumentButton.addEventListener("click", async () => {
         template_id: selectedTemplateId,
         extracted_data: currentExtractedData,
         signature_data_url: getSignatureDataUrl(),
+        use_preview_text: previewWasEdited,
+        preview_text: currentDocumentDraft,
       }),
     });
 
@@ -297,83 +303,40 @@ function readCurrentQuestionValue() {
 
 function renderPreview() {
   documentDraftBox.innerHTML = `<pre class="document-draft-text">${escapeHtml(currentDocumentDraft || "Документ готов к скачиванию в Word.")}</pre>`;
-  renderFieldsEditor();
   downloadDocumentButton.disabled = !selectedTemplateId;
   downloadPdfButton.disabled = true;
+  setPreviewEditMode(false);
   initSignaturePad();
 }
 
-function renderFieldsEditor() {
-  if (!documentFieldsEditor) {
-    return;
-  }
-
-  const fields = currentExtractedData.fields || {};
-  const entries = Object.entries(fields);
-
-  if (!entries.length) {
-    documentFieldsEditor.innerHTML = "";
-    return;
-  }
-
-  documentFieldsEditor.innerHTML = `
-    <div class="document-preview-box" style="margin-top: 24px;">
-      <h3>Редактирование данных перед скачиванием</h3>
-      <p class="hint">Изменения здесь попадут в итоговый Word-документ.</p>
-      <div class="document-fields-grid">
-        ${entries.map(([key, value]) => `
-          <label style="display: block; margin-bottom: 14px;">
-            <span style="display: block; font-weight: 700; margin-bottom: 6px;">${escapeHtml(makeReadableFieldName(key))}</span>
-            <textarea
-              class="preview-field-input"
-              data-field-key="${escapeHtml(key)}"
-              style="width: 100%; min-height: 72px; border: 1px solid #e5e7eb; border-radius: 14px; padding: 12px; font: inherit;"
-            >${escapeHtml(value)}</textarea>
-          </label>
-        `).join("")}
-      </div>
-    </div>
+editPreviewButton.addEventListener("click", () => {
+  previewBeforeEdit = currentDocumentDraft || "";
+  documentDraftBox.innerHTML = `
+    <textarea id="previewTextEditor" class="document-preview-editor">${escapeHtml(previewBeforeEdit)}</textarea>
   `;
+  setPreviewEditMode(true);
+});
 
-  document.querySelectorAll(".preview-field-input").forEach((input) => {
-    input.addEventListener("input", () => {
-      const key = input.dataset.fieldKey;
+savePreviewButton.addEventListener("click", () => {
+  const editor = document.getElementById("previewTextEditor");
+  currentDocumentDraft = editor ? editor.value.trim() : currentDocumentDraft;
+  previewWasEdited = true;
 
-      if (!currentExtractedData.fields) {
-        currentExtractedData.fields = {};
-      }
+  documentDraftBox.innerHTML = `<pre class="document-draft-text">${escapeHtml(currentDocumentDraft || "Документ готов к скачиванию в Word.")}</pre>`;
+  setPreviewEditMode(false);
+});
 
-      currentExtractedData.fields[key] = input.value.trim();
-      currentDocumentDraft = buildPreviewTextFromFields();
-      documentDraftBox.innerHTML = `<pre class="document-draft-text">${escapeHtml(currentDocumentDraft)}</pre>`;
-    });
-  });
-}
+cancelPreviewButton.addEventListener("click", () => {
+  currentDocumentDraft = previewBeforeEdit;
 
-function buildPreviewTextFromFields() {
-  const fields = currentExtractedData.fields || {};
-  const lines = [
-    `Документ: ${currentDocumentTitle}`,
-    "",
-    "Заполненные данные:",
-  ];
+  documentDraftBox.innerHTML = `<pre class="document-draft-text">${escapeHtml(currentDocumentDraft || "Документ готов к скачиванию в Word.")}</pre>`;
+  setPreviewEditMode(false);
+});
 
-  Object.entries(fields).forEach(([key, value]) => {
-    if (String(value || "").trim()) {
-      lines.push(`- ${makeReadableFieldName(key)}: ${value}`);
-    }
-  });
-
-  lines.push("");
-  lines.push("После скачивания Word проверьте реквизиты, правовое основание, приложения и подпись.");
-
-  return lines.join("\n");
-}
-
-function makeReadableFieldName(key) {
-  return String(key || "")
-    .replaceAll("_", " ")
-    .replace(/^./, (char) => char.toUpperCase());
+function setPreviewEditMode(isEditing) {
+  editPreviewButton.hidden = isEditing;
+  savePreviewButton.hidden = !isEditing;
+  cancelPreviewButton.hidden = !isEditing;
 }
 
 function showStartScreen() {

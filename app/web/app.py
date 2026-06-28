@@ -743,8 +743,10 @@ def create_app() -> Flask:
         template_id = (data.get("template_id") or "").strip()
         extracted_data = data.get("extracted_data") or {}
         signature_data_url = (data.get("signature_data_url") or "").strip()
+        use_preview_text = bool(data.get("use_preview_text"))
+        preview_text = (data.get("preview_text") or "").strip()
 
-        if template_id and extracted_data:
+        if template_id and extracted_data and not use_preview_text:
             try:
                 file_stream = render_docx_template(
                     template_id=template_id,
@@ -762,6 +764,9 @@ def create_app() -> Flask:
                 )
             except FileNotFoundError:
                 pass
+
+        if use_preview_text and preview_text:
+            content = preview_text
 
         if not content:
             return jsonify({
