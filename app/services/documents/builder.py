@@ -40,6 +40,12 @@ def build_document_from_request(
             family=family,
         )
 
+    if not template and family in ["motion", "complaint"]:
+        return {
+            "status": "error",
+            "message": f"В текущей библиотеке пока нет подходящего шаблона для типа документа: {family_label(family)}. Скоро добавим!",
+        }
+
     if not template:
         template = choose_best_template(
             query=user_request,
@@ -437,7 +443,10 @@ def is_empty(value) -> bool:
 
     if isinstance(value, str):
         clean = value.strip()
-        return not clean or clean == "не указано" or clean.startswith("[УКАЗАТЬ")
+        if clean.startswith("[УКАЗАТЬ:"):
+            return False
+
+        return not clean or clean == "не указано" or clean.startswith("[УКАЗАТЬ_")
 
     if isinstance(value, list):
         return len(value) == 0

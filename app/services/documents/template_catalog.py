@@ -45,9 +45,7 @@ def search_templates(
         item_family = item.get("family") or ""
 
         if family and family not in ["unknown", "document"]:
-            if family == "motion":
-                pass
-            elif item_family != family:
+            if item_family != family:
                 continue
 
         score = score_template(item, query_words, family)
@@ -133,6 +131,18 @@ def score_template(item: dict, query_words: list[str], family: str | None = None
 
     if "займ" in query_text and "займ" in title:
         score += 8
+
+    query_mentions_counterclaim = "встречн" in query_text
+
+    if "встречн" in title and not query_mentions_counterclaim:
+        score -= 80
+
+    if "встречн" in title and query_mentions_counterclaim:
+        score += 30
+
+    if family == "lawsuit":
+        if title.startswith("исковое заявление") and "встречн" not in title:
+            score += 12
 
     if "с представителем" in title:
         score -= 2

@@ -10,7 +10,7 @@ const generateDocumentButton = document.getElementById("generateDocumentButton")
 const restartInterviewButton = document.getElementById("restartInterviewButton");
 const backToInterviewButton = document.getElementById("backToInterviewButton");
 const answerQuestionButton = document.getElementById("answerQuestionButton");
-
+const skipQuestionButton = document.getElementById("skipQuestionButton");
 const downloadDocumentButton = document.getElementById("downloadDocumentButton");
 const downloadPdfButton = document.getElementById("downloadPdfButton");
 
@@ -70,6 +70,17 @@ answerQuestionButton.addEventListener("click", async () => {
 
   const answers = {};
   answers[currentQuestion.key] = value;
+
+  await runInterview(answers);
+});
+
+skipQuestionButton.addEventListener("click", async () => {
+  if (!currentQuestion) {
+    return;
+  }
+
+  const answers = {};
+  answers[currentQuestion.key] = `[УКАЗАТЬ: ${currentQuestion.label || currentQuestion.key}]`;
 
   await runInterview(answers);
 });
@@ -310,7 +321,7 @@ function showPreviewScreen() {
 function setLoading(isLoading) {
   generateDocumentButton.disabled = isLoading;
   answerQuestionButton.disabled = isLoading || !currentQuestion;
-
+  skipQuestionButton.disabled = isLoading || !currentQuestion;
   generateDocumentButton.textContent = isLoading
     ? "Обработка..."
     : "Начать интервью";
