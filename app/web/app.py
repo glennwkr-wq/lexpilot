@@ -1,4 +1,6 @@
 import time
+import json
+from pathlib import Path
 from flask import Flask, render_template, jsonify, request, send_file
 from sqlalchemy import text
 from app.core.config import settings
@@ -113,47 +115,72 @@ def get_knowledge_type_label(document_type: str | None) -> str:
     return KNOWLEDGE_TYPE_LABELS.get(document_type, document_type)
 
 
+def safe_count(session, sql: str, params: dict | None = None) -> int:
+    try:
+        return int(session.execute(text(sql), params or {}).scalar_one() or 0)
+    except Exception:
+        return 0
+
+
+def get_manifest_templates_count() -> int:
+    manifest_path = Path(__file__).resolve().parents[2] / "document_templates" / "russian_library" / "manifest.json"
+
+    if not manifest_path.exists():
+        return 0
+
+    try:
+        data = json.loads(manifest_path.read_text(encoding="utf-8"))
+        return len(data) if isinstance(data, list) else 0
+    except Exception:
+        return 0
+
+
 def get_knowledge_stats() -> dict:
     with SessionLocal() as session:
-        total_documents = session.execute(
-            text("SELECT COUNT(*) FROM legal_documents")
-        ).scalar_one()
+        total_documents = safe_count(session, "SELECT COUNT(*) FROM legal_documents")
+        total_chunks = safe_count(session, "SELECT COUNT(*) FROM knowledge_chunks")
 
-        total_chunks = session.execute(
-            text("SELECT COUNT(*) FROM knowledge_chunks")
-        ).scalar_one()
+        manual_documents = safe_count(session, """
+            SELECT COUNT(*)
+            FROM legal_documents
+            WHERE source = 'manual'
+        """)
 
-        manual_documents = session.execute(
-            text("""
-                SELECT COUNT(*)
-                FROM legal_documents
-                WHERE source = 'manual'
-            """)
-        ).scalar_one()
+        system_documents = safe_count(session, """
+            SELECT COUNT(*)
+            FROM legal_documents
+            WHERE source IS DISTINCT FROM 'manual'
+        """)
 
-        system_documents = session.execute(
-            text("""
-                SELECT COUNT(*)
-                FROM legal_documents
-                WHERE source IS DISTINCT FROM 'manual'
-            """)
-        ).scalar_one()
+        db_templates_count = safe_count(session, """
+            SELECT COUNT(*)
+            FROM legal_documents
+            WHERE document_type IN ('02_document_templates', 'document_template')
+        """)
 
-        templates_count = session.execute(
-            text("""
-                SELECT COUNT(*)
-                FROM legal_documents
-                WHERE document_type IN ('02_document_templates', 'document_template')
-            """)
-        ).scalar_one()
+        manifest_templates_count = get_manifest_templates_count()
+        templates_count = max(db_templates_count, manifest_templates_count)
 
-        intake_forms_count = session.execute(
-            text("""
-                SELECT COUNT(*)
-                FROM legal_documents
-                WHERE document_type = '12_intake_forms'
-            """)
-        ).scalar_one()
+        intake_forms_count = safe_count(session, """
+            SELECT COUNT(*)
+            FROM legal_documents
+            WHERE document_type = '12_intake_forms'
+        """)
+
+        core_law_articles_count = safe_count(session, "SELECT COUNT(*) FROM core_law_articles")
+        federal_law_documents_count = safe_count(session, "SELECT COUNT(*) FROM federal_law_documents")
+        federal_law_chunks_count = safe_count(session, "SELECT COUNT(*) FROM federal_law_chunks")
+
+        legal_corpus_count = total_documents + core_law_articles_count + federal_law_documents_count
+
+        active_cases_count = safe_count(session, """
+            SELECT COUNT(*)
+            FROM cases
+            WHERE status IS DISTINCT FROM 'closed'
+        """)
+
+        tasks_count = safe_count(session, "SELECT COUNT(*) FROM tasks")
+        clients_count = safe_count(session, "SELECT COUNT(*) FROM clients")
 
         categories_rows = session.execute(
             text("""
@@ -210,7 +237,17 @@ def get_knowledge_stats() -> dict:
         "manual_documents": manual_documents,
         "system_documents": system_documents,
         "templates_count": templates_count,
+        "db_templates_count": db_templates_count,
+        "manifest_templates_count": manifest_templates_count,
         "intake_forms_count": intake_forms_count,
+        "core_law_articles_count": core_law_articles_count,
+        "federal_law_documents_count": federal_law_documents_count,
+        "federal_law_chunks_count": federal_law_chunks_count,
+        "legal_corpus_count": legal_corpus_count,
+        "active_cases_count": active_cases_count,
+        "tasks_count": tasks_count,
+        "clients_count": clients_count,
+        "ai_tools_count": 3,
         "categories": categories,
         "documents": documents,
     }

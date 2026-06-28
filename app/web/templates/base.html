@@ -12,14 +12,14 @@
     <div class="logo">LexPilot</div>
 
     <nav>
-      <a href="/">Дашборд</a>
-      <a href="/ask">AI-консультация</a>
-      <a href="/cases">Дела</a>
-      <a href="/clients">Клиенты</a>
-      <a href="/document-builder">Генератор документов</a>
-      <a href="/document-analysis">Анализ документа</a>
-      <a href="/knowledge">База знаний</a>
-      <a href="/settings">Настройки</a>
+      <a href="/" class="{% if request.path == '/' %}is-active{% endif %}">Дашборд</a>
+      <a href="/ask" class="{% if request.path.startswith('/ask') %}is-active{% endif %}">AI-консультация</a>
+      <a href="/cases" class="{% if request.path.startswith('/cases') %}is-active{% endif %}">Дела</a>
+      <a href="/clients" class="{% if request.path.startswith('/clients') %}is-active{% endif %}">Клиенты</a>
+      <a href="/document-builder" class="{% if request.path.startswith('/document-builder') %}is-active{% endif %}">Генератор документов</a>
+      <a href="/document-analysis" class="{% if request.path.startswith('/document-analysis') %}is-active{% endif %}">Анализ документа</a>
+      <a href="/knowledge" class="{% if request.path.startswith('/knowledge') %}is-active{% endif %}">База знаний</a>
+      <a href="/settings" class="{% if request.path.startswith('/settings') %}is-active{% endif %}">Настройки</a>
     </nav>
   </aside>
 

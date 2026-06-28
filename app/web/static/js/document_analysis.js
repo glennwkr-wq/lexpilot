@@ -78,6 +78,13 @@ function renderAnalysisSources(sources) {
     .join("");
 }
 
+function cleanMarkdownMarks(value) {
+  return String(value || "")
+    .replace(/\*\*/g, "")
+    .replace(/^\s*#{1,6}\s+/gm, "")
+    .trim();
+}
+
 analyzeDocumentButton.addEventListener("click", async () => {
   const documentText = documentTextInput.value.trim();
 
@@ -111,7 +118,7 @@ analyzeDocumentButton.addEventListener("click", async () => {
       return;
     }
 
-    documentAnalysisBox.textContent = data.analysis || "Анализ не был сформирован.";
+    documentAnalysisBox.textContent = cleanMarkdownMarks(data.analysis || "Анализ не был сформирован.");
     renderAnalysisSources(data.sources);
     analysisStatusBadge.textContent = "Анализ готов";
     if (data.saved_analysis) {

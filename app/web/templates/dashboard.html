@@ -20,26 +20,26 @@
 <section class="dashboard-grid stats-grid">
   <article class="metric-card">
     <span>Активные дела</span>
-    <strong>{{ workspace.active_cases_count }}</strong>
-    <p>После подключения карточек дел здесь появятся реальные производства.</p>
+    <strong>{{ stats.active_cases_count }}</strong>
+    <p>Дела в работе, кроме закрытых.</p>
   </article>
 
   <article class="metric-card">
-    <span>Документы MVP</span>
-    <strong>7</strong>
-    <p>Претензия, иск, ходатайство, отзыв, жалоба, апелляция, кассация.</p>
+    <span>Шаблоны документов</span>
+    <strong>{{ stats.templates_count }}</strong>
+    <p>Актуальное число шаблонов из библиотеки.</p>
   </article>
 
   <article class="metric-card">
-    <span>База знаний</span>
-    <strong>{{ stats.total_documents }}</strong>
-    <p>Загруженные материалы после последней индексации.</p>
+    <span>Юридический корпус</span>
+    <strong>{{ stats.legal_corpus_count }}</strong>
+    <p>Материалы базы, кодексы и федеральные источники.</p>
   </article>
 
   <article class="metric-card">
     <span>AI-инструменты</span>
-    <strong>2</strong>
-    <p>AI-консультация и генератор документов уже работают.</p>
+    <strong>{{ stats.ai_tools_count }}</strong>
+    <p>Консультация, генератор и анализ документа.</p>
   </article>
 </section>
 
@@ -123,11 +123,10 @@
         </div>
       </div>
 
-      <div class="quick-actions">
-        <a href="/document-builder">Создать претензию</a>
-        <a href="/document-builder">Создать иск</a>
-        <a href="/document-builder">Создать ходатайство</a>
-        <a href="/document-builder">Создать жалобу</a>
+      <div class="quick-actions quick-actions-three">
+        <a href="/document-builder">Сгенерировать документ</a>
+        <a href="/document-analysis">Анализ документа</a>
+        <a href="/ask">AI-консультация</a>
       </div>
     </section>
 
@@ -142,16 +141,16 @@
 
       <div class="knowledge-list">
         <div>
-          <strong>Проверенные шаблоны</strong>
-          <p>7 базовых шаблонов документов.</p>
+          <strong>Шаблоны документов</strong>
+          <p>{{ stats.templates_count }} шаблонов доступно для генератора.</p>
         </div>
         <div>
-          <strong>Карты данных</strong>
-          <p>7 карт обязательных данных.</p>
+          <strong>Материалы базы</strong>
+          <p>{{ stats.total_documents }} материалов и {{ stats.total_chunks }} фрагментов поиска.</p>
         </div>
         <div>
-          <strong>Умный подбор</strong>
-          <p>LexPilot автоматически подбирает шаблон и карту обязательных данных по типу документа.</p>
+          <strong>Юридический корпус</strong>
+          <p>{{ stats.core_law_articles_count }} статей кодексов и {{ stats.federal_law_documents_count }} федеральных материалов.</p>
         </div>
       </div>
     </section>
