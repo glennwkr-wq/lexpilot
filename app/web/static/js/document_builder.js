@@ -210,6 +210,9 @@ async function runInterview(answers) {
 }
 
 function renderQuestionLoading() {
+  if (skipQuestionButton) {
+    skipQuestionButton.hidden = true;
+  }
   singleQuestionBox.innerHTML = `
     <div class="single-question-card">
       <span>LexPilot</span>
@@ -220,6 +223,9 @@ function renderQuestionLoading() {
 }
 
 function renderQuestion(question) {
+  if (skipQuestionButton) {
+    skipQuestionButton.hidden = false;
+  }
   const type = question.type || "text";
   const options = Array.isArray(question.options) ? question.options : [];
 

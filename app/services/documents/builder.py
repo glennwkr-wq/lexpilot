@@ -1,5 +1,5 @@
 import re
-
+from app.services.documents.field_labels import get_field_label
 from app.providers.llm.openai import generate_document_intake_json
 from app.services.documents.template_catalog import (
     choose_best_template,
@@ -205,77 +205,7 @@ def label_from_variable(variable: str, template: dict) -> str:
 
 
 def cleanup_label(value: str) -> str:
-    value = str(value or "")
-    value = re.sub(r"<[^>]+>", " ", value)
-    value = re.sub(r"&[a-zA-Z]+;", " ", value)
-    value = re.sub(r"\{[{%].*?[%}]\}", " ", value)
-    value = value.replace("_", " ")
-    value = value.replace("-", " ")
-    value = re.sub(r"\s+", " ", value).strip()
-
-    lower_value = value.lower()
-
-    replacements = {
-        "court name": "Наименование суда",
-        "court": "Суд",
-        "court address": "Адрес суда",
-        "plaintiff": "Истец",
-        "plaintiff address": "Адрес истца",
-        "defendant": "Ответчик",
-        "defendant address": "Адрес ответчика",
-        "applicant": "Заявитель",
-        "applicant address": "Адрес заявителя",
-        "representative": "Представитель",
-        "representative address": "Адрес представителя",
-        "signature": "Подпись",
-        "signature image": "Подпись",
-        "claim price": "Цена иска",
-        "debt amount": "Сумма задолженности",
-        "interest amount": "Сумма процентов",
-        "penalty amount": "Сумма неустойки",
-        "state duty": "Госпошлина",
-        "state duty amount": "Размер госпошлины",
-        "contract date": "Дата договора",
-        "contract number": "Номер договора",
-        "repayment deadline": "Срок возврата / оплаты",
-        "date": "Дата",
-        "city": "Город",
-        "claims": "Требования",
-        "claim list": "Список требований",
-        "facts": "Фактические обстоятельства",
-        "grounds": "Основания",
-        "basis": "Основание",
-        "request": "Просьба к суду / органу",
-        "attachments": "Приложения",
-        "evidence": "Доказательства",
-        "court name text": "Наименование суда",
-        "preserve address": "Адрес суда",
-        "plaintiff name": "ФИО / наименование истца",
-        "plaintiff details": "Данные истца",
-        "plaintiff role": "Роль истца по договору",
-        "plaintiff obligation": "Обязанность истца по договору",
-        "plaintiff representative": "Представитель истца",
-        "plaintiff id": "Идентификатор / реквизиты истца",
-        "defendant name": "ФИО / наименование ответчика",
-        "defendant details": "Данные ответчика",
-        "defendant role": "Роль ответчика по договору",
-        "defendant belief": "Позиция ответчика",
-        "defendant registration address": "Адрес регистрации ответчика",
-        "contract type": "Вид договора",
-        "contract price": "Цена договора",
-        "claim subject": "Предмет требований",
-        "first argument explanation": "Первое обоснование требований",
-        "second argument explanation": "Второе обоснование требований",
-        "additional request": "Дополнительное требование",
-    }
-
-    if lower_value in replacements:
-        return replacements[lower_value]
-
-    if not value:
-        return "Поле документа"
-
-    return value[:1].upper() + value[1:]
+    return get_field_label(value)
 
 
 def guess_field_type(variable: str) -> str:
