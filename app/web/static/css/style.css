@@ -2596,3 +2596,38 @@ button.secondary:hover,
     width: 100%;
   }
 }
+
+/* ===== Dashboard compact panels fix ===== */
+
+.dashboard-layout {
+  align-items: start;
+}
+
+.dashboard-column {
+  height: auto;
+}
+
+.dashboard-panel {
+  min-height: auto;
+}
+
+.dashboard-column .dashboard-panel {
+  flex: 0 0 auto;
+  min-height: 260px;
+}
+
+.dashboard-panel .empty-state {
+  padding: 16px 18px;
+}
+
+.dashboard-panel .panel-header {
+  margin-bottom: 14px;
+}
+
+.dashboard-panel h2 {
+  font-size: 26px;
+}
+
+.quick-actions-three a {
+  min-height: 48px;
+}
