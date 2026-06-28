@@ -15,6 +15,7 @@ const downloadDocumentButton = document.getElementById("downloadDocumentButton")
 const downloadPdfButton = document.getElementById("downloadPdfButton");
 
 const documentDraftBox = document.getElementById("documentDraftBox");
+const documentFieldsEditor = document.getElementById("documentFieldsEditor");
 const documentStatusBadge = document.getElementById("documentStatusBadge");
 const singleQuestionBox = document.getElementById("singleQuestionBox");
 
@@ -296,9 +297,83 @@ function readCurrentQuestionValue() {
 
 function renderPreview() {
   documentDraftBox.innerHTML = `<pre class="document-draft-text">${escapeHtml(currentDocumentDraft || "Документ готов к скачиванию в Word.")}</pre>`;
+  renderFieldsEditor();
   downloadDocumentButton.disabled = !selectedTemplateId;
   downloadPdfButton.disabled = true;
   initSignaturePad();
+}
+
+function renderFieldsEditor() {
+  if (!documentFieldsEditor) {
+    return;
+  }
+
+  const fields = currentExtractedData.fields || {};
+  const entries = Object.entries(fields);
+
+  if (!entries.length) {
+    documentFieldsEditor.innerHTML = "";
+    return;
+  }
+
+  documentFieldsEditor.innerHTML = `
+    <div class="document-preview-box" style="margin-top: 24px;">
+      <h3>Редактирование данных перед скачиванием</h3>
+      <p class="hint">Изменения здесь попадут в итоговый Word-документ.</p>
+      <div class="document-fields-grid">
+        ${entries.map(([key, value]) => `
+          <label style="display: block; margin-bottom: 14px;">
+            <span style="display: block; font-weight: 700; margin-bottom: 6px;">${escapeHtml(makeReadableFieldName(key))}</span>
+            <textarea
+              class="preview-field-input"
+              data-field-key="${escapeHtml(key)}"
+              style="width: 100%; min-height: 72px; border: 1px solid #e5e7eb; border-radius: 14px; padding: 12px; font: inherit;"
+            >${escapeHtml(value)}</textarea>
+          </label>
+        `).join("")}
+      </div>
+    </div>
+  `;
+
+  document.querySelectorAll(".preview-field-input").forEach((input) => {
+    input.addEventListener("input", () => {
+      const key = input.dataset.fieldKey;
+
+      if (!currentExtractedData.fields) {
+        currentExtractedData.fields = {};
+      }
+
+      currentExtractedData.fields[key] = input.value.trim();
+      currentDocumentDraft = buildPreviewTextFromFields();
+      documentDraftBox.innerHTML = `<pre class="document-draft-text">${escapeHtml(currentDocumentDraft)}</pre>`;
+    });
+  });
+}
+
+function buildPreviewTextFromFields() {
+  const fields = currentExtractedData.fields || {};
+  const lines = [
+    `Документ: ${currentDocumentTitle}`,
+    "",
+    "Заполненные данные:",
+  ];
+
+  Object.entries(fields).forEach(([key, value]) => {
+    if (String(value || "").trim()) {
+      lines.push(`- ${makeReadableFieldName(key)}: ${value}`);
+    }
+  });
+
+  lines.push("");
+  lines.push("После скачивания Word проверьте реквизиты, правовое основание, приложения и подпись.");
+
+  return lines.join("\n");
+}
+
+function makeReadableFieldName(key) {
+  return String(key || "")
+    .replaceAll("_", " ")
+    .replace(/^./, (char) => char.toUpperCase());
 }
 
 function showStartScreen() {
