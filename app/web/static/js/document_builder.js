@@ -29,6 +29,7 @@ let currentDocumentTitle = "Юридический документ";
 let currentClientName = "";
 let currentExtractedData = {};
 let currentQuestion = null;
+let currentFields = [];
 let selectedTemplateId = "";
 let interviewStarted = false;
 let signaturePadReady = false;
@@ -112,8 +113,6 @@ downloadDocumentButton.addEventListener("click", async () => {
         template_id: selectedTemplateId,
         extracted_data: currentExtractedData,
         signature_data_url: getSignatureDataUrl(),
-        use_preview_text: previewWasEdited,
-        preview_text: currentDocumentDraft,
       }),
     });
 
@@ -190,6 +189,7 @@ async function runInterview(answers) {
     currentDocumentTitle = data.selected_template?.title || data.detected_label || "Юридический документ";
     currentClientName = data.client?.full_name || getSelectedClientName();
     currentExtractedData = data.extracted_data || {};
+    currentFields = Array.isArray(data.fields) ? data.fields : [];
     currentQuestion = data.current_question || null;
 
     if (currentQuestion) {
@@ -311,16 +311,23 @@ function renderPreview() {
 
 editPreviewButton.addEventListener("click", () => {
   previewBeforeEdit = currentDocumentDraft || "";
+
   documentDraftBox.innerHTML = `
-    <textarea id="previewTextEditor" class="document-preview-editor">${escapeHtml(previewBeforeEdit)}</textarea>
+    <textarea
+      id="previewTextEditor"
+      class="document-preview-editor"
+      style="width: 100%; min-height: 520px; font: inherit; line-height: 1.6; padding: 18px; border: 1px solid #e5e7eb; border-radius: 18px; resize: vertical;"
+    >${escapeHtml(previewBeforeEdit)}</textarea>
   `;
+
   setPreviewEditMode(true);
 });
 
 savePreviewButton.addEventListener("click", () => {
   const editor = document.getElementById("previewTextEditor");
   currentDocumentDraft = editor ? editor.value.trim() : currentDocumentDraft;
-  previewWasEdited = true;
+
+  applyPreviewChangesToExtractedData(currentDocumentDraft);
 
   documentDraftBox.innerHTML = `<pre class="document-draft-text">${escapeHtml(currentDocumentDraft || "Документ готов к скачиванию в Word.")}</pre>`;
   setPreviewEditMode(false);
@@ -337,6 +344,40 @@ function setPreviewEditMode(isEditing) {
   editPreviewButton.hidden = isEditing;
   savePreviewButton.hidden = !isEditing;
   cancelPreviewButton.hidden = !isEditing;
+}
+
+function applyPreviewChangesToExtractedData(previewText) {
+  if (!currentExtractedData || !currentExtractedData.fields) {
+    return;
+  }
+
+  const fieldsByLabel = {};
+
+  currentFields.forEach((field) => {
+    if (field && field.label && field.key) {
+      fieldsByLabel[field.label.trim()] = field.key;
+    }
+  });
+
+  previewText.split("\n").forEach((line) => {
+    const cleanLine = line.trim();
+
+    if (!cleanLine.startsWith("- ") || !cleanLine.includes(":")) {
+      return;
+    }
+
+    const withoutDash = cleanLine.slice(2);
+    const separatorIndex = withoutDash.indexOf(":");
+
+    const label = withoutDash.slice(0, separatorIndex).trim();
+    const value = withoutDash.slice(separatorIndex + 1).trim();
+
+    const key = fieldsByLabel[label];
+
+    if (key) {
+      currentExtractedData.fields[key] = value;
+    }
+  });
 }
 
 function showStartScreen() {
